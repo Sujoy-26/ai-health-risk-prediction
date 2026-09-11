@@ -6,10 +6,10 @@ import pickle
 # LOAD MODEL
 # ==============================
 
-with open("health_model/model.pkl", "rb") as f:
+with open("model.pkl", "rb") as f:
     model = pickle.load(f)
 
-with open("health_model/scaler.pkl", "rb") as f:
+with open("scaler.pkl", "rb") as f:
     scaler = pickle.load(f)
 
 
