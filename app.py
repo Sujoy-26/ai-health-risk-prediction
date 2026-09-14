@@ -23,6 +23,7 @@ DB_FILE = "patient_history.db"
 # =========================================================
 
 def init_db():
+
     conn = sqlite3.connect(DB_FILE)
     cur = conn.cursor()
 
@@ -67,6 +68,7 @@ init_db()
 # =========================================================
 
 try:
+
     with open("model.pkl", "rb") as f:
         model = pickle.load(f)
 
@@ -77,12 +79,13 @@ try:
     MODEL_ERROR = ""
 
 except Exception as e:
+
     MODEL_OK = False
     MODEL_ERROR = str(e)
 
 
 # =========================================================
-# PATIENT ID
+# PATIENT ID GENERATION
 # =========================================================
 
 def generate_patient_id():
@@ -98,18 +101,28 @@ def generate_patient_id():
     """)
 
     result = cur.fetchone()
+
     conn.close()
 
     if result is None:
         return "PAT-0001"
 
     try:
-        last_number = int(result[0].replace("PAT-", ""))
+
+        last_number = int(
+            result[0].replace("PAT-", "")
+        )
+
         return f"PAT-{last_number + 1:04d}"
 
     except Exception:
+
         return "PAT-0001"
 
+
+# =========================================================
+# FIND EXISTING PATIENT
+# =========================================================
 
 def find_existing_patient(phone, name):
 
@@ -118,10 +131,15 @@ def find_existing_patient(phone, name):
 
     patient = None
 
+    # First search by phone
     if phone.strip():
 
         cur.execute("""
-            SELECT patient_id, patient_name, phone, email
+            SELECT
+                patient_id,
+                patient_name,
+                phone,
+                email
             FROM patients
             WHERE phone = ?
             LIMIT 1
@@ -129,10 +147,15 @@ def find_existing_patient(phone, name):
 
         patient = cur.fetchone()
 
+    # If phone not found, search by name
     if patient is None and name.strip():
 
         cur.execute("""
-            SELECT patient_id, patient_name, phone, email
+            SELECT
+                patient_id,
+                patient_name,
+                phone,
+                email
             FROM patients
             WHERE LOWER(patient_name) = LOWER(?)
             LIMIT 1
@@ -145,7 +168,16 @@ def find_existing_patient(phone, name):
     return patient
 
 
-def save_patient(patient_id, name, phone, email):
+# =========================================================
+# SAVE PATIENT
+# =========================================================
+
+def save_patient(
+    patient_id,
+    name,
+    phone,
+    email
+):
 
     conn = sqlite3.connect(DB_FILE)
     cur = conn.cursor()
@@ -165,14 +197,25 @@ def save_patient(patient_id, name, phone, email):
         name.strip(),
         phone.strip(),
         email.strip(),
-        datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        datetime.now().strftime(
+            "%Y-%m-%d %H:%M:%S"
+        )
     ))
 
     conn.commit()
     conn.close()
 
 
-def update_patient(patient_id, name, phone, email):
+# =========================================================
+# UPDATE PATIENT
+# =========================================================
+
+def update_patient(
+    patient_id,
+    name,
+    phone,
+    email
+):
 
     conn = sqlite3.connect(DB_FILE)
     cur = conn.cursor()
@@ -218,7 +261,8 @@ def save_assessment(
     cur = conn.cursor()
 
     cur.execute("""
-        INSERT INTO assessments (
+        INSERT INTO assessments
+        (
             patient_id,
             age,
             gender,
@@ -247,7 +291,9 @@ def save_assessment(
         family_history,
         risk_probability,
         risk_category,
-        datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        datetime.now().strftime(
+            "%Y-%m-%d %H:%M:%S"
+        )
     ))
 
     conn.commit()
@@ -266,7 +312,8 @@ def get_patients(search=""):
 
         value = f"%{search.strip()}%"
 
-        df = pd.read_sql_query("""
+        df = pd.read_sql_query(
+            """
             SELECT
                 patient_id,
                 patient_name,
@@ -278,11 +325,19 @@ def get_patients(search=""):
                OR patient_name LIKE ?
                OR phone LIKE ?
             ORDER BY created_at DESC
-        """, conn, params=(value, value, value))
+            """,
+            conn,
+            params=(
+                value,
+                value,
+                value
+            )
+        )
 
     else:
 
-        df = pd.read_sql_query("""
+        df = pd.read_sql_query(
+            """
             SELECT
                 patient_id,
                 patient_name,
@@ -291,7 +346,9 @@ def get_patients(search=""):
                 created_at
             FROM patients
             ORDER BY created_at DESC
-        """, conn)
+            """,
+            conn
+        )
 
     conn.close()
 
@@ -306,7 +363,8 @@ def get_history(patient_id):
 
     conn = sqlite3.connect(DB_FILE)
 
-    df = pd.read_sql_query("""
+    df = pd.read_sql_query(
+        """
         SELECT
             id,
             assessment_date,
@@ -324,7 +382,10 @@ def get_history(patient_id):
         FROM assessments
         WHERE patient_id = ?
         ORDER BY assessment_date ASC
-    """, conn, params=(patient_id,))
+        """,
+        conn,
+        params=(patient_id,)
+    )
 
     conn.close()
 
@@ -332,55 +393,75 @@ def get_history(patient_id):
 
 
 # =========================================================
-# CSS
+# COMPLETE UI CSS
 # =========================================================
 
 st.markdown("""
 <style>
 
+/* =====================================================
+   MAIN BACKGROUND
+   ===================================================== */
+
 [data-testid="stAppViewContainer"] {
-    background: #f5f9fc;
+    background: #f4f9fc !important;
 }
 
 [data-testid="stHeader"] {
-    background: transparent;
+    background: transparent !important;
 }
 
 .block-container {
     max-width: 1250px;
-    padding-top: 1.2rem;
+    padding-top: 1rem;
     padding-bottom: 3rem;
 }
+
+
+/* =====================================================
+   HERO
+   ===================================================== */
 
 .hero {
     background: linear-gradient(
         135deg,
-        #e6f7ff 0%,
+        #e3f6ff 0%,
         #ffffff 100%
     );
 
-    border: 1px solid #cfe8f3;
+    border: 1px solid #c8e6f2;
     border-radius: 28px;
 
     padding: 42px;
 
-    margin: 10px 0 28px 0;
+    margin-bottom: 28px;
 
     box-shadow:
-        0 10px 28px rgba(25,80,105,0.08);
+        0 10px 30px rgba(
+            30,
+            90,
+            120,
+            0.08
+        );
 }
 
 .hero-label {
     color: #087da8 !important;
+
     font-size: 14px;
+
     font-weight: 800;
+
     letter-spacing: 2px;
 }
 
 .hero-title {
     color: #123b55 !important;
+
     font-size: 42px;
+
     line-height: 1.15;
+
     font-weight: 900;
 
     margin-top: 8px;
@@ -388,57 +469,84 @@ st.markdown("""
 }
 
 .hero-subtitle {
-    color: #4f6f80 !important;
+    color: #4e6e7f !important;
+
     font-size: 17px;
+
     line-height: 1.6;
 }
 
+
+/* =====================================================
+   SECTION TITLES
+   ===================================================== */
+
 .section-title {
     color: #087da8 !important;
+
     font-size: 25px;
+
     font-weight: 850;
 
     margin-top: 25px;
     margin-bottom: 15px;
 }
 
-.feature-card {
-    background: #ffffff;
 
-    border: 1px solid #d8e8ef;
+/* =====================================================
+   FEATURE CARDS
+   ===================================================== */
+
+.feature-card {
+    background: #ffffff !important;
+
+    border: 1px solid #d5e7ef;
+
     border-radius: 20px;
 
-    padding: 24px 22px;
+    padding: 24px;
 
     min-height: 150px;
 
     box-shadow:
-        0 7px 20px rgba(30,80,100,0.07);
+        0 7px 20px rgba(
+            30,
+            80,
+            100,
+            0.07
+        );
 }
 
 .feature-card h3 {
     color: #123b55 !important;
 
     font-size: 19px;
+
     font-weight: 850;
 
-    margin-top: 0;
-    margin-bottom: 12px;
+    margin: 0 0 12px 0;
 }
 
 .feature-card p {
     color: #587180 !important;
 
     font-size: 14px;
+
     line-height: 1.6;
 
     margin: 0;
 }
 
-.id-card {
-    background: #e8f7ff;
 
-    border: 1px solid #c6e8f4;
+/* =====================================================
+   PATIENT ID CARD
+   ===================================================== */
+
+.id-card {
+    background: #e7f7ff !important;
+
+    border: 1px solid #bfe3f1;
+
     border-radius: 16px;
 
     padding: 16px;
@@ -450,6 +558,7 @@ st.markdown("""
     color: #52717f !important;
 
     font-size: 12px;
+
     font-weight: 800;
 }
 
@@ -457,31 +566,44 @@ st.markdown("""
     color: #087da8 !important;
 
     font-size: 21px;
+
     font-weight: 900;
 
     margin-top: 5px;
 }
 
-.result-card {
-    background: #ffffff;
 
-    border: 1px solid #d8e8ef;
+/* =====================================================
+   RESULT CARD
+   ===================================================== */
+
+.result-card {
+    background: #ffffff !important;
+
+    border: 1px solid #d5e7ef;
+
     border-radius: 24px;
 
     padding: 30px;
 
     text-align: center;
 
-    margin: 25px 0;
+    margin-top: 25px;
 
     box-shadow:
-        0 10px 28px rgba(20,70,90,0.08);
+        0 10px 28px rgba(
+            20,
+            70,
+            90,
+            0.08
+        );
 }
 
 .result-label {
     color: #607986 !important;
 
     font-size: 14px;
+
     font-weight: 750;
 }
 
@@ -489,6 +611,7 @@ st.markdown("""
     color: #123b55 !important;
 
     font-size: 52px;
+
     font-weight: 900;
 
     margin: 5px 0;
@@ -498,10 +621,191 @@ st.markdown("""
     color: #087da8 !important;
 
     font-size: 28px;
+
     font-weight: 900;
 }
 
+
+/* =====================================================
+   STREAMLIT LABEL FIX
+   ===================================================== */
+
+/* All widget labels */
+
+[data-testid="stWidgetLabel"],
+[data-testid="stWidgetLabel"] *,
+[data-testid="stWidgetLabel"] p,
+[data-testid="stWidgetLabel"] span,
+[data-testid="stWidgetLabel"] div {
+
+    color: #24495d !important;
+
+    font-weight: 650 !important;
+}
+
+
+/* Input labels */
+
+label {
+    color: #24495d !important;
+}
+
+
+/* Number input */
+
+[data-testid="stNumberInput"] label,
+[data-testid="stNumberInput"] label *,
+[data-testid="stNumberInput"] [data-testid="stWidgetLabel"],
+[data-testid="stNumberInput"] [data-testid="stWidgetLabel"] * {
+
+    color: #24495d !important;
+}
+
+
+/* Text input */
+
+[data-testid="stTextInput"] label,
+[data-testid="stTextInput"] label *,
+[data-testid="stTextInput"] [data-testid="stWidgetLabel"],
+[data-testid="stTextInput"] [data-testid="stWidgetLabel"] * {
+
+    color: #24495d !important;
+}
+
+
+/* Select box */
+
+[data-testid="stSelectbox"] label,
+[data-testid="stSelectbox"] label *,
+[data-testid="stSelectbox"] [data-testid="stWidgetLabel"],
+[data-testid="stSelectbox"] [data-testid="stWidgetLabel"] * {
+
+    color: #24495d !important;
+}
+
+
+/* =====================================================
+   INPUT TEXT
+   ===================================================== */
+
+[data-testid="stTextInput"] input {
+
+    color: #ffffff !important;
+
+    background-color: #292b34 !important;
+
+    border-radius: 10px !important;
+}
+
+
+[data-testid="stNumberInput"] input {
+
+    color: #ffffff !important;
+
+    background-color: #292b34 !important;
+
+    border-radius: 10px !important;
+}
+
+
+/* Placeholder */
+
+[data-testid="stTextInput"] input::placeholder {
+
+    color: #d5d8dd !important;
+}
+
+
+/* =====================================================
+   SELECT BOX
+   ===================================================== */
+
+[data-baseweb="select"] {
+
+    background-color: #292b34 !important;
+
+    border-radius: 10px !important;
+}
+
+[data-baseweb="select"] * {
+
+    color: #ffffff !important;
+}
+
+
+/* =====================================================
+   INFO BOX
+   ===================================================== */
+
+[data-testid="stAlert"] {
+
+    border-radius: 12px !important;
+}
+
+[data-testid="stAlert"] * {
+
+    color: #176b94 !important;
+}
+
+
+/* =====================================================
+   BUTTON
+   ===================================================== */
+
+.stButton > button {
+
+    background: #087da8 !important;
+
+    color: #ffffff !important;
+
+    border: none !important;
+
+    border-radius: 11px !important;
+
+    font-weight: 750 !important;
+
+    min-height: 48px;
+}
+
+.stButton > button:hover {
+
+    background: #066b90 !important;
+
+    color: #ffffff !important;
+}
+
+
+/* =====================================================
+   METRICS
+   ===================================================== */
+
+[data-testid="stMetricLabel"] {
+
+    color: #52717f !important;
+}
+
+[data-testid="stMetricValue"] {
+
+    color: #123b55 !important;
+}
+
+
+/* =====================================================
+   DATAFRAME
+   ===================================================== */
+
+[data-testid="stDataFrame"] {
+
+    border-radius: 12px;
+}
+
+
+/* =====================================================
+   FOOTER
+   ===================================================== */
+
 .footer {
+
     color: #71848f !important;
 
     text-align: center;
@@ -533,10 +837,14 @@ page = st.radio(
 
 
 # =========================================================
-# HOME PAGE
+# HOME
 # =========================================================
 
 if page == "🏠 Home":
+
+    # -----------------------------------------------------
+    # HERO
+    # -----------------------------------------------------
 
     st.html("""
     <div class="hero">
@@ -567,6 +875,7 @@ if page == "🏠 Home":
     # -----------------------------------------------------
 
     c1, c2, c3 = st.columns(3)
+
 
     with c1:
 
@@ -812,7 +1121,7 @@ if page == "🏠 Home":
 
 
     # -----------------------------------------------------
-    # PREDICT
+    # PREDICT BUTTON
     # -----------------------------------------------------
 
     predict_button = st.button(
@@ -823,6 +1132,10 @@ if page == "🏠 Home":
 
 
     if predict_button:
+
+        # -------------------------------------------------
+        # VALIDATION
+        # -------------------------------------------------
 
         if not patient_name.strip():
 
@@ -845,21 +1158,21 @@ if page == "🏠 Home":
 
 
         # -------------------------------------------------
-        # FIND / CREATE PATIENT
+        # PATIENT ID
         # -------------------------------------------------
 
-        existing = find_existing_patient(
+        existing_patient = find_existing_patient(
             phone,
             patient_name
         )
 
 
-        if existing:
+        if existing_patient:
 
             # Existing patient
-            # Keep the same Patient ID.
+            # Same ID will be used.
 
-            patient_id = existing[0]
+            patient_id = existing_patient[0]
 
             update_patient(
                 patient_id,
@@ -872,7 +1185,7 @@ if page == "🏠 Home":
         else:
 
             # New patient
-            # Automatically generate ID.
+            # ID generated automatically.
 
             patient_id = generate_patient_id()
 
@@ -885,7 +1198,7 @@ if page == "🏠 Home":
 
 
         # -------------------------------------------------
-        # MODEL INPUT
+        # CONVERT YES / NO
         # -------------------------------------------------
 
         smoking_value = (
@@ -893,11 +1206,16 @@ if page == "🏠 Home":
             else 0
         )
 
+
         family_history_value = (
             1 if family_history == "Yes"
             else 0
         )
 
+
+        # -------------------------------------------------
+        # MODEL INPUT
+        # -------------------------------------------------
 
         input_data = pd.DataFrame([
             {
@@ -915,25 +1233,40 @@ if page == "🏠 Home":
 
         try:
 
+            # -------------------------------------------------
+            # SCALE
+            # -------------------------------------------------
+
             input_scaled = scaler.transform(
                 input_data
             )
 
+
+            # -------------------------------------------------
+            # PREDICT
+            # -------------------------------------------------
 
             prediction = model.predict(
                 input_scaled
             )[0]
 
 
-            if hasattr(model, "predict_proba"):
+            if hasattr(
+                model,
+                "predict_proba"
+            ):
 
-                probability = model.predict_proba(
-                    input_scaled
-                )[0][1]
+                probability = (
+                    model.predict_proba(
+                        input_scaled
+                    )[0][1]
+                )
 
             else:
 
-                probability = float(prediction)
+                probability = float(
+                    prediction
+                )
 
 
             percentage = probability * 100
@@ -960,7 +1293,7 @@ if page == "🏠 Home":
 
 
             # -------------------------------------------------
-            # SAVE
+            # SAVE ASSESSMENT
             # -------------------------------------------------
 
             save_assessment(
@@ -1031,6 +1364,7 @@ if page == "🏠 Home":
             i1, i2, i3 = st.columns(3)
 
 
+            # BMI
             if bmi < 18.5:
 
                 bmi_message = (
@@ -1059,6 +1393,7 @@ if page == "🏠 Home":
                 )
 
 
+            # BP
             if blood_pressure < 120:
 
                 bp_message = (
@@ -1080,6 +1415,7 @@ if page == "🏠 Home":
                 )
 
 
+            # Activity
             if physical_activity >= 3:
 
                 activity_message = (
@@ -1204,6 +1540,10 @@ else:
         ].iloc[0]
 
 
+        # -------------------------------------------------
+        # PATIENT DETAILS
+        # -------------------------------------------------
+
         st.markdown(
             '<div class="section-title">'
             '👤 Patient Details'
@@ -1269,6 +1609,10 @@ else:
 
         else:
 
+            # -------------------------------------------------
+            # GRAPH
+            # -------------------------------------------------
+
             st.markdown(
                 '<div class="section-title">'
                 '📈 Risk History'
@@ -1333,17 +1677,27 @@ else:
 
             display_df = display_df.rename(
                 columns={
-                    "assessment_date": "Date",
-                    "bmi": "BMI",
+                    "assessment_date":
+                        "Date",
+
+                    "bmi":
+                        "BMI",
+
                     "blood_pressure":
                         "Blood Pressure",
-                    "glucose": "Glucose",
+
+                    "glucose":
+                        "Glucose",
+
                     "cholesterol":
                         "Cholesterol",
+
                     "physical_activity":
                         "Activity Hours",
+
                     "risk_probability":
                         "Risk %",
+
                     "risk_category":
                         "Risk Category"
                 }
@@ -1369,7 +1723,7 @@ else:
 
 
             # -------------------------------------------------
-            # DETAILS
+            # ASSESSMENT DETAILS
             # -------------------------------------------------
 
             st.markdown(
@@ -1438,31 +1792,55 @@ else:
 
 
             detail_df = pd.DataFrame({
+
                 "Parameter": [
+
                     "Age",
+
                     "Gender",
+
                     "BMI",
+
                     "Blood Pressure",
+
                     "Glucose",
+
                     "Cholesterol",
+
                     "Physical Activity",
+
                     "Smoking",
+
                     "Family History",
+
                     "Assessment Date"
+
                 ],
 
                 "Value": [
+
                     assessment["age"],
+
                     assessment["gender"],
+
                     assessment["bmi"],
+
                     assessment["blood_pressure"],
+
                     assessment["glucose"],
+
                     assessment["cholesterol"],
+
                     assessment["physical_activity"],
+
                     assessment["smoking"],
+
                     assessment["family_history"],
+
                     assessment["assessment_date"]
+
                 ]
+
             })
 
 
