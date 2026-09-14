@@ -541,13 +541,12 @@ if page == "🏠 Home":
     p1, p2, p3 = st.columns(3)
 
 
-    with p1:
+   with p1:
+    st.markdown("### 🆔 Patient ID")
 
-        patient_id = st.text_input(
-            "Patient ID",
-            placeholder="Example: P001"
-        )
-
+    st.info(
+        "Patient ID will be generated automatically after you enter the patient details."
+    )
 
     with p2:
 
