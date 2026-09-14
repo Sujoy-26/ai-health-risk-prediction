@@ -1,8 +1,8 @@
 import streamlit as st
 import pandas as pd
 import pickle
-import sqlite3
-from datetime import datetime
+from supabase import create_client, Client
+
 
 # =========================================================
 # CONFIG
@@ -14,52 +14,18 @@ st.set_page_config(
     layout="wide"
 )
 
-DB_FILE = "patient_history_v2.db"
-
 
 # =========================================================
-# DATABASE
+# SUPABASE DATABASE
 # =========================================================
 
-def init_db():
+SUPABASE_URL = st.secrets["SUPABASE_URL"]
+SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 
-    conn = sqlite3.connect(DB_FILE)
-    cur = conn.cursor()
-
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS patients (
-            patient_id TEXT PRIMARY KEY,
-            patient_name TEXT NOT NULL,
-            phone TEXT,
-            email TEXT,
-            created_at TEXT
-        )
-    """)
-
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS assessments (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            patient_id TEXT NOT NULL,
-            age REAL,
-            gender TEXT,
-            bmi REAL,
-            blood_pressure REAL,
-            glucose REAL,
-            cholesterol REAL,
-            physical_activity REAL,
-            smoking TEXT,
-            family_history TEXT,
-            risk_probability REAL,
-            risk_category TEXT,
-            assessment_date TEXT
-        )
-    """)
-
-    conn.commit()
-    conn.close()
-
-
-init_db()
+supabase: Client = create_client(
+    SUPABASE_URL,
+    SUPABASE_KEY
+)
 
 
 # =========================================================
@@ -89,119 +55,136 @@ except Exception as e:
 
 def generate_patient_id():
 
-    conn = sqlite3.connect(DB_FILE)
-    cur = conn.cursor()
+    rows = (
+        supabase
+        .table("patients")
+        .select("patient_id")
+        .execute()
+        .data
+    )
 
-    cur.execute("""
-        SELECT patient_id
-        FROM patients
-        ORDER BY rowid DESC
-        LIMIT 1
-    """)
+    max_num = 0
 
-    row = cur.fetchone()
-    conn.close()
+    for row in rows:
 
-    if row is None:
-        return "PAT-0001"
+        pid = str(row.get("patient_id", ""))
 
-    try:
+        if pid.startswith("PAT-"):
 
-        last_id = int(
-            row[0].replace("PAT-", "")
-        )
+            try:
+                number = int(
+                    pid.replace("PAT-", "")
+                )
 
-        return f"PAT-{last_id + 1:04d}"
+                max_num = max(
+                    max_num,
+                    number
+                )
 
-    except Exception:
+            except ValueError:
+                pass
 
-        return "PAT-0001"
+    return f"PAT-{max_num + 1:04d}"
 
+
+# =========================================================
+# FIND EXISTING PATIENT
+# =========================================================
 
 def find_existing_patient(phone, name):
 
-    conn = sqlite3.connect(DB_FILE)
-    cur = conn.cursor()
-
     patient = None
 
+    # Search by phone first
     if phone and phone.strip():
 
-        cur.execute("""
-            SELECT patient_id, patient_name, phone, email
-            FROM patients
-            WHERE phone = ?
-            LIMIT 1
-        """, (phone.strip(),))
+        result = (
+            supabase
+            .table("patients")
+            .select("*")
+            .eq(
+                "phone",
+                phone.strip()
+            )
+            .limit(1)
+            .execute()
+        )
 
-        patient = cur.fetchone()
+        if result.data:
+            patient = result.data[0]
 
+
+    # If phone not found, search by name
     if patient is None and name and name.strip():
 
-        cur.execute("""
-            SELECT patient_id, patient_name, phone, email
-            FROM patients
-            WHERE LOWER(patient_name) = LOWER(?)
-            LIMIT 1
-        """, (name.strip(),))
+        result = (
+            supabase
+            .table("patients")
+            .select("*")
+            .ilike(
+                "patient_name",
+                name.strip()
+            )
+            .limit(1)
+            .execute()
+        )
 
-        patient = cur.fetchone()
+        if result.data:
+            patient = result.data[0]
 
-    conn.close()
 
     return patient
 
 
-def save_patient(patient_id, name, phone, email):
+# =========================================================
+# SAVE PATIENT
+# =========================================================
 
-    conn = sqlite3.connect(DB_FILE)
-    cur = conn.cursor()
+def save_patient(
+    patient_id,
+    name,
+    phone,
+    email
+):
 
-    cur.execute("""
-        INSERT OR IGNORE INTO patients
-        (
-            patient_id,
-            patient_name,
-            phone,
-            email,
-            created_at
+    (
+        supabase
+        .table("patients")
+        .insert({
+            "patient_id": patient_id,
+            "patient_name": name.strip(),
+            "phone": phone.strip(),
+            "email": email.strip()
+        })
+        .execute()
+    )
+
+
+# =========================================================
+# UPDATE PATIENT
+# =========================================================
+
+def update_patient(
+    patient_id,
+    name,
+    phone,
+    email
+):
+
+    (
+        supabase
+        .table("patients")
+        .update({
+            "patient_name": name.strip(),
+            "phone": phone.strip(),
+            "email": email.strip()
+        })
+        .eq(
+            "patient_id",
+            patient_id
         )
-        VALUES (?, ?, ?, ?, ?)
-    """, (
-        patient_id,
-        name.strip(),
-        phone.strip(),
-        email.strip(),
-        datetime.now().strftime(
-            "%Y-%m-%d %H:%M:%S"
-        )
-    ))
-
-    conn.commit()
-    conn.close()
-
-
-def update_patient(patient_id, name, phone, email):
-
-    conn = sqlite3.connect(DB_FILE)
-    cur = conn.cursor()
-
-    cur.execute("""
-        UPDATE patients
-        SET
-            patient_name = ?,
-            phone = ?,
-            email = ?
-        WHERE patient_id = ?
-    """, (
-        name.strip(),
-        phone.strip(),
-        email.strip(),
-        patient_id
-    ))
-
-    conn.commit()
-    conn.close()
+        .execute()
+    )
 
 
 # =========================================================
@@ -223,127 +206,189 @@ def save_assessment(
     category
 ):
 
-    conn = sqlite3.connect(DB_FILE)
-    cur = conn.cursor()
+    (
+        supabase
+        .table("assessments")
+        .insert({
 
-    cur.execute("""
-        INSERT INTO assessments
-        (
-            patient_id,
-            age,
-            gender,
-            bmi,
-            blood_pressure,
-            glucose,
-            cholesterol,
-            physical_activity,
-            smoking,
-            family_history,
-            risk_probability,
-            risk_category,
-            assessment_date
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (
-        patient_id,
-        age,
-        gender,
-        bmi,
-        bp,
-        glucose,
-        cholesterol,
-        activity,
-        smoking,
-        family_history,
-        risk,
-        category,
-        datetime.now().strftime(
-            "%Y-%m-%d %H:%M:%S"
-        )
-    ))
+            "patient_id": patient_id,
 
-    conn.commit()
-    conn.close()
+            "age": age,
 
+            "gender": gender,
+
+            "bmi": bmi,
+
+            "blood_pressure": bp,
+
+            "glucose": glucose,
+
+            "cholesterol": cholesterol,
+
+            "physical_activity": activity,
+
+            "smoking": smoking,
+
+            "family_history": family_history,
+
+            "risk_probability": risk,
+
+            "risk_category": category
+
+        })
+        .execute()
+    )
+
+
+# =========================================================
+# GET PATIENTS
+# =========================================================
 
 def get_patients(search=""):
 
-    conn = sqlite3.connect(DB_FILE)
+    result = (
+        supabase
+        .table("patients")
+        .select(
+            "patient_id, "
+            "patient_name, "
+            "phone, "
+            "email, "
+            "created_at"
+        )
+        .order(
+            "created_at",
+            desc=True
+        )
+        .execute()
+    )
 
+    rows = result.data or []
+
+
+    if not rows:
+
+        return pd.DataFrame(
+            columns=[
+                "patient_id",
+                "patient_name",
+                "phone",
+                "email",
+                "created_at"
+            ]
+        )
+
+
+    df = pd.DataFrame(rows)
+
+
+    # Search
     if search.strip():
 
-        value = f"%{search.strip()}%"
+        value = search.strip().lower()
 
-        df = pd.read_sql_query(
-            """
-            SELECT
-                patient_id,
-                patient_name,
-                phone,
-                email,
-                created_at
-            FROM patients
-            WHERE patient_id LIKE ?
-               OR patient_name LIKE ?
-               OR phone LIKE ?
-            ORDER BY created_at DESC
-            """,
-            conn,
-            params=(value, value, value)
+        mask = (
+
+            df["patient_id"]
+            .fillna("")
+            .astype(str)
+            .str.lower()
+            .str.contains(
+                value,
+                regex=False
+            )
+
+            |
+
+            df["patient_name"]
+            .fillna("")
+            .astype(str)
+            .str.lower()
+            .str.contains(
+                value,
+                regex=False
+            )
+
+            |
+
+            df["phone"]
+            .fillna("")
+            .astype(str)
+            .str.lower()
+            .str.contains(
+                value,
+                regex=False
+            )
         )
 
-    else:
+        df = df[mask]
 
-        df = pd.read_sql_query(
-            """
-            SELECT
-                patient_id,
-                patient_name,
-                phone,
-                email,
-                created_at
-            FROM patients
-            ORDER BY created_at DESC
-            """,
-            conn
-        )
 
-    conn.close()
+    return df.reset_index(
+        drop=True
+    )
 
-    return df
 
+# =========================================================
+# GET PATIENT HISTORY
+# =========================================================
 
 def get_history(patient_id):
 
-    conn = sqlite3.connect(DB_FILE)
-
-    df = pd.read_sql_query(
-        """
-        SELECT
-            id,
-            assessment_date,
-            age,
-            gender,
-            bmi,
-            blood_pressure,
-            glucose,
-            cholesterol,
-            physical_activity,
-            smoking,
-            family_history,
-            risk_probability,
-            risk_category
-        FROM assessments
-        WHERE patient_id = ?
-        ORDER BY assessment_date ASC
-        """,
-        conn,
-        params=(patient_id,)
+    result = (
+        supabase
+        .table("assessments")
+        .select(
+            "id, "
+            "assessment_date, "
+            "age, "
+            "gender, "
+            "bmi, "
+            "blood_pressure, "
+            "glucose, "
+            "cholesterol, "
+            "physical_activity, "
+            "smoking, "
+            "family_history, "
+            "risk_probability, "
+            "risk_category"
+        )
+        .eq(
+            "patient_id",
+            patient_id
+        )
+        .order(
+            "assessment_date",
+            desc=False
+        )
+        .execute()
     )
 
-    conn.close()
+    rows = result.data or []
 
-    return df
+
+    if not rows:
+
+        return pd.DataFrame(
+            columns=[
+                "id",
+                "assessment_date",
+                "age",
+                "gender",
+                "bmi",
+                "blood_pressure",
+                "glucose",
+                "cholesterol",
+                "physical_activity",
+                "smoking",
+                "family_history",
+                "risk_probability",
+                "risk_category"
+            ]
+        )
+
+
+    return pd.DataFrame(rows)
 
 
 # =========================================================
@@ -949,67 +994,67 @@ if page == "🏠 Home":
             st.stop()
 
 
-        # PATIENT ID
-
-        existing = find_existing_patient(
-            phone,
-            patient_name
-        )
-
-
-        if existing:
-
-            patient_id = existing[0]
-
-            update_patient(
-                patient_id,
-                patient_name,
-                phone,
-                email
-            )
-
-        else:
-
-            patient_id = generate_patient_id()
-
-            save_patient(
-                patient_id,
-                patient_name,
-                phone,
-                email
-            )
-
-
-        # YES / NO CONVERSION
-
-        smoking_value = (
-            1 if smoking == "Yes"
-            else 0
-        )
-
-        family_history_value = (
-            1 if family_history == "Yes"
-            else 0
-        )
-
-
-        # MODEL DATA
-
-        input_data = pd.DataFrame([
-            {
-                "Age": age,
-                "BMI": bmi,
-                "BloodPressure": blood_pressure,
-                "Glucose": glucose,
-                "Cholesterol": cholesterol,
-                "PhysicalActivity": physical_activity,
-                "Smoking": smoking_value,
-                "FamilyHistory": family_history_value
-            }
-        ])
-
-
         try:
+
+            # PATIENT
+
+            existing = find_existing_patient(
+                phone,
+                patient_name
+            )
+
+
+            if existing:
+
+                patient_id = existing["patient_id"]
+
+                update_patient(
+                    patient_id,
+                    patient_name,
+                    phone,
+                    email
+                )
+
+            else:
+
+                patient_id = generate_patient_id()
+
+                save_patient(
+                    patient_id,
+                    patient_name,
+                    phone,
+                    email
+                )
+
+
+            # YES / NO CONVERSION
+
+            smoking_value = (
+                1 if smoking == "Yes"
+                else 0
+            )
+
+            family_history_value = (
+                1 if family_history == "Yes"
+                else 0
+            )
+
+
+            # MODEL DATA
+
+            input_data = pd.DataFrame([
+                {
+                    "Age": age,
+                    "BMI": bmi,
+                    "BloodPressure": blood_pressure,
+                    "Glucose": glucose,
+                    "Cholesterol": cholesterol,
+                    "PhysicalActivity": physical_activity,
+                    "Smoking": smoking_value,
+                    "FamilyHistory": family_history_value
+                }
+            ])
+
 
             # SCALE
 
@@ -1064,7 +1109,7 @@ if page == "🏠 Home":
                 emoji = "🔴"
 
 
-            # SAVE
+            # SAVE TO SUPABASE
 
             save_assessment(
                 patient_id,
@@ -1239,7 +1284,6 @@ if page == "🏠 Home":
 
             st.code(str(e))
 
-
 # =========================================================
 # PATIENT HISTORY
 # =========================================================
@@ -1266,11 +1310,15 @@ else:
     """)
 
 
+    # SEARCH
+
     search = st.text_input(
         "🔎 Search Patient",
         placeholder="Example: PAT-0001 or patient name"
     )
 
+
+    # GET PATIENTS FROM SUPABASE
 
     patients_df = get_patients(search)
 
@@ -1295,6 +1343,10 @@ else:
             == selected_patient
         ].iloc[0]
 
+
+        # =================================================
+        # PATIENT DETAILS
+        # =================================================
 
         st.markdown(
             '<div class="section-title">'
@@ -1343,7 +1395,9 @@ else:
             )
 
 
+        # =================================================
         # HISTORY
+        # =================================================
 
         history_df = get_history(
             selected_patient
@@ -1358,6 +1412,10 @@ else:
 
 
         else:
+
+            # =================================================
+            # RISK HISTORY
+            # =================================================
 
             st.markdown(
                 '<div class="section-title">'
@@ -1398,7 +1456,9 @@ else:
             )
 
 
-            # TABLE
+            # =================================================
+            # PREVIOUS ASSESSMENTS
+            # =================================================
 
             st.markdown(
                 '<div class="section-title">'
@@ -1420,6 +1480,7 @@ else:
 
             display_df = display_df.rename(
                 columns={
+
                     "assessment_date":
                         "Date",
 
@@ -1465,7 +1526,9 @@ else:
             )
 
 
-            # DETAILS
+            # =================================================
+            # ASSESSMENT DETAILS
+            # =================================================
 
             st.markdown(
                 '<div class="section-title">'
@@ -1529,6 +1592,10 @@ else:
                     f"{assessment['glucose']:.0f}"
                 )
 
+
+            # =================================================
+            # DETAILS TABLE
+            # =================================================
 
             detail_df = pd.DataFrame({
 
