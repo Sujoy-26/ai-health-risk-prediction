@@ -538,7 +538,7 @@ if page == "🏠 Home":
     """)
 
 
-    p1, p2, p3 = st.columns(3)
+    
 
 
   p1, p2, p3 = st.columns(3)
