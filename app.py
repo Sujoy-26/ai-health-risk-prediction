@@ -2,7 +2,9 @@ import streamlit as st
 import pandas as pd
 import pickle
 import sqlite3
+import textwrap
 from datetime import datetime
+
 
 # ============================================================
 # LOAD MODEL
@@ -14,6 +16,7 @@ with open("model.pkl", "rb") as f:
 with open("scaler.pkl", "rb") as f:
     scaler = pickle.load(f)
 
+
 DB_FILE = "patient_history.db"
 
 
@@ -22,7 +25,9 @@ DB_FILE = "patient_history.db"
 # ============================================================
 
 def init_db():
+
     conn = sqlite3.connect(DB_FILE)
+
     cur = conn.cursor()
 
     cur.execute("""
@@ -61,14 +66,30 @@ def init_db():
     conn.close()
 
 
-def save_patient(patient_id, name, age, gender, phone, email):
+def save_patient(
+    patient_id,
+    name,
+    age,
+    gender,
+    phone,
+    email
+):
 
     conn = sqlite3.connect(DB_FILE)
+
     cur = conn.cursor()
 
     cur.execute("""
         INSERT OR REPLACE INTO patients
-        (patient_id, name, age, gender, phone, email, created_at)
+        (
+            patient_id,
+            name,
+            age,
+            gender,
+            phone,
+            email,
+            created_at
+        )
         VALUES (?, ?, ?, ?, ?, ?, ?)
     """, (
         patient_id,
@@ -77,7 +98,9 @@ def save_patient(patient_id, name, age, gender, phone, email):
         gender,
         phone,
         email,
-        datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        datetime.now().strftime(
+            "%Y-%m-%d %H:%M:%S"
+        )
     ))
 
     conn.commit()
@@ -101,6 +124,7 @@ def save_assessment(
 ):
 
     conn = sqlite3.connect(DB_FILE)
+
     cur = conn.cursor()
 
     cur.execute("""
@@ -124,7 +148,9 @@ def save_assessment(
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         patient_id,
-        datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        datetime.now().strftime(
+            "%Y-%m-%d %H:%M:%S"
+        ),
         age,
         gender,
         bmi,
@@ -180,6 +206,25 @@ def get_patients(search=""):
     return df
 
 
+def get_patient(patient_id):
+
+    conn = sqlite3.connect(DB_FILE)
+
+    df = pd.read_sql_query(
+        """
+        SELECT *
+        FROM patients
+        WHERE patient_id = ?
+        """,
+        conn,
+        params=(patient_id,)
+    )
+
+    conn.close()
+
+    return df
+
+
 def get_history(patient_id):
 
     conn = sqlite3.connect(DB_FILE)
@@ -211,30 +256,11 @@ def get_history(patient_id):
     return df
 
 
-def get_patient(patient_id):
-
-    conn = sqlite3.connect(DB_FILE)
-
-    df = pd.read_sql_query(
-        """
-        SELECT *
-        FROM patients
-        WHERE patient_id = ?
-        """,
-        conn,
-        params=(patient_id,)
-    )
-
-    conn.close()
-
-    return df
-
-
 init_db()
 
 
 # ============================================================
-# PAGE CONFIG
+# PAGE CONFIGURATION
 # ============================================================
 
 st.set_page_config(
@@ -248,156 +274,399 @@ st.set_page_config(
 # CUSTOM CSS
 # ============================================================
 
-st.markdown("""
-<style>
+st.markdown(
+    textwrap.dedent("""
+    <style>
 
-.stApp {
-    background: #f5f9ff;
-}
+    /* =========================
+       MAIN PAGE
+       ========================= */
 
-.block-container {
-    max-width: 1250px;
-    padding-top: 1rem;
-}
+    .stApp {
+        background-color: #f5f9ff !important;
+    }
 
-
-/* NAVBAR */
-
-.navbar {
-    background: white;
-    padding: 14px 20px;
-    border-radius: 16px;
-    margin-bottom: 20px;
-    box-shadow: 0 4px 18px rgba(30,70,120,.08);
-}
-
-.brand {
-    color: #12356f;
-    font-size: 28px;
-    font-weight: 800;
-}
-
-.subtitle {
-    color: #68778d;
-    font-size: 12px;
-}
+    .block-container {
+        max-width: 1250px;
+        padding-top: 1rem;
+        padding-bottom: 3rem;
+    }
 
 
-/* HERO */
+    /* =========================
+       GENERAL TEXT
+       ========================= */
 
-.hero {
-    background: linear-gradient(
-        135deg,
-        #dff1ff,
-        #c9e7ff,
-        #eef8ff
-    );
+    .stApp p {
+        color: #344563;
+    }
 
-    border-radius: 22px;
-    padding: 42px;
-    margin-bottom: 25px;
-}
-
-.hero-label {
-    color: #1267a8;
-    font-size: 13px;
-    font-weight: 700;
-    letter-spacing: 2px;
-}
-
-.hero h1 {
-    color: #102e68;
-    font-size: 43px;
-    line-height: 1.12;
-}
-
-.hero p {
-    color: #375477;
-    font-size: 18px;
-}
+    .stApp h1,
+    .stApp h2,
+    .stApp h3,
+    .stApp h4,
+    .stApp h5,
+    .stApp h6 {
+        color: #102e68 !important;
+    }
 
 
-/* CARDS */
+    /* =========================
+       NAVBAR
+       ========================= */
 
-.card {
-    background: white;
-    padding: 25px;
-    border-radius: 18px;
-    box-shadow: 0 5px 20px rgba(30,70,120,.08);
-    margin-bottom: 20px;
-}
+    .navbar {
+        background: #ffffff;
+        padding: 15px 22px;
+        border-radius: 18px;
+        margin-bottom: 22px;
 
+        box-shadow:
+            0 5px 20px rgba(30, 70, 120, 0.08);
+    }
 
-/* BUTTON */
+    .brand {
+        color: #12356f !important;
+        font-size: 28px;
+        font-weight: 800;
+        line-height: 1.1;
+    }
 
-.stButton > button {
-
-    background: linear-gradient(
-        135deg,
-        #087ce8,
-        #1565e8
-    );
-
-    color: white;
-    border: none;
-    border-radius: 12px;
-    height: 52px;
-    font-weight: 700;
-}
-
-
-/* HISTORY */
-
-.history-card {
-
-    background: white;
-    padding: 22px;
-    border-radius: 18px;
-
-    box-shadow:
-        0 5px 20px rgba(30,70,120,.08);
-}
+    .brand-subtitle {
+        color: #667085 !important;
+        font-size: 12px;
+        margin-top: 4px;
+    }
 
 
-/* DISCLAIMER */
+    /* =========================
+       HERO
+       ========================= */
 
-.disclaimer {
+    .hero {
+        background:
+            linear-gradient(
+                135deg,
+                #dff1ff 0%,
+                #c9e7ff 50%,
+                #eef8ff 100%
+            );
 
-    background: #e4f2ff;
+        border-radius: 24px;
+        padding: 42px;
+        margin-bottom: 25px;
 
-    padding: 16px;
+        border: 1px solid #d3eaff;
 
-    border-radius: 14px;
+        box-shadow:
+            0 6px 25px rgba(30, 90, 150, 0.08);
+    }
 
-    text-align: center;
+    .hero-label {
+        color: #1267a8 !important;
+        font-size: 13px;
+        font-weight: 800;
+        letter-spacing: 2px;
+        margin-bottom: 12px;
+    }
 
-    color: #45627e;
+    .hero-title {
+        color: #102e68 !important;
+        font-size: 43px;
+        font-weight: 800;
+        line-height: 1.12;
+        margin: 0;
+    }
 
-    font-size: 12px;
-}
+    .hero-text {
+        color: #375477 !important;
+        font-size: 18px;
+        margin-top: 15px;
+        line-height: 1.5;
+    }
 
-</style>
-""", unsafe_allow_html=True)
+    .hero-features {
+        display: flex;
+        gap: 35px;
+        margin-top: 28px;
+    }
+
+    .hero-feature {
+        color: #183f75 !important;
+        font-size: 14px;
+        font-weight: 600;
+    }
+
+
+    /* =========================
+       CARD
+       ========================= */
+
+    .main-card {
+        background: #ffffff;
+
+        padding: 26px;
+
+        border-radius: 20px;
+
+        box-shadow:
+            0 5px 20px rgba(30, 70, 120, 0.08);
+
+        border: 1px solid #edf2f7;
+
+        margin-bottom: 22px;
+    }
+
+
+    /* =========================
+       SECTION TITLE
+       ========================= */
+
+    .section-title {
+        color: #102e68 !important;
+        font-size: 27px;
+        font-weight: 800;
+        margin-bottom: 6px;
+    }
+
+    .section-subtitle {
+        color: #64748b !important;
+        font-size: 14px;
+        margin-bottom: 20px;
+    }
+
+
+    /* =========================
+       INPUT LABELS
+       ========================= */
+
+    .stTextInput label,
+    .stNumberInput label,
+    .stSelectbox label,
+    .stSlider label {
+        color: #263b5a !important;
+        font-weight: 650 !important;
+    }
+
+
+    /* =========================
+       INPUT BOXES
+       ========================= */
+
+    .stTextInput input,
+    .stNumberInput input {
+
+        background-color: #ffffff !important;
+
+        color: #172b4d !important;
+
+        border: 1px solid #d8e1ec !important;
+
+        border-radius: 10px !important;
+    }
+
+
+    .stTextInput input::placeholder {
+        color: #8a98aa !important;
+    }
+
+
+    /* =========================
+       SELECTBOX
+       ========================= */
+
+    div[data-baseweb="select"] > div {
+
+        background-color: #ffffff !important;
+
+        border: 1px solid #d8e1ec !important;
+
+        border-radius: 10px !important;
+
+        color: #172b4d !important;
+    }
+
+    div[data-baseweb="select"] span {
+
+        color: #172b4d !important;
+    }
+
+
+    /* =========================
+       RADIO NAVIGATION
+       ========================= */
+
+    div[role="radiogroup"] label {
+
+        color: #17345f !important;
+
+        font-weight: 650 !important;
+    }
+
+
+    /* =========================
+       SLIDER
+       ========================= */
+
+    .stSlider label {
+        color: #263b5a !important;
+    }
+
+
+    /* =========================
+       BUTTON
+       ========================= */
+
+    .stButton > button {
+
+        background:
+            linear-gradient(
+                135deg,
+                #087ce8,
+                #1565e8
+            ) !important;
+
+        color: #ffffff !important;
+
+        border: none !important;
+
+        border-radius: 13px !important;
+
+        height: 55px;
+
+        font-size: 17px;
+
+        font-weight: 750;
+
+        box-shadow:
+            0 7px 18px rgba(18, 110, 230, 0.25);
+    }
+
+    .stButton > button:hover {
+
+        background:
+            linear-gradient(
+                135deg,
+                #076dce,
+                #1258d5
+            ) !important;
+
+        color: #ffffff !important;
+    }
+
+
+    /* =========================
+       METRICS
+       ========================= */
+
+    [data-testid="stMetricLabel"] {
+
+        color: #526581 !important;
+
+        font-weight: 600 !important;
+    }
+
+    [data-testid="stMetricValue"] {
+
+        color: #102e68 !important;
+
+        font-weight: 800 !important;
+    }
+
+
+    /* =========================
+       HISTORY CARD
+       ========================= */
+
+    .history-card {
+
+        background: #ffffff;
+
+        padding: 25px;
+
+        border-radius: 18px;
+
+        border: 1px solid #e5edf6;
+
+        box-shadow:
+            0 5px 20px rgba(30,70,120,.08);
+    }
+
+
+    /* =========================
+       DISCLAIMER
+       ========================= */
+
+    .disclaimer {
+
+        background: #e4f2ff;
+
+        padding: 17px 22px;
+
+        border-radius: 14px;
+
+        text-align: center;
+
+        color: #45627e !important;
+
+        font-size: 12px;
+
+        border: 1px solid #d0e8fb;
+    }
+
+
+    /* =========================
+       MOBILE
+       ========================= */
+
+    @media (max-width: 768px) {
+
+        .hero {
+            padding: 28px;
+        }
+
+        .hero-title {
+            font-size: 32px;
+        }
+
+        .hero-features {
+            flex-direction: column;
+            gap: 12px;
+        }
+
+    }
+
+    </style>
+    """),
+    unsafe_allow_html=True
+)
+
+
+# ============================================================
+# NAVBAR
+# ============================================================
+
+st.markdown(
+    textwrap.dedent("""
+    <div class="navbar">
+
+        <div class="brand">
+            🫀 AI Health Risk
+        </div>
+
+        <div class="brand-subtitle">
+            Predict • Prevent • Live Better
+        </div>
+
+    </div>
+    """),
+    unsafe_allow_html=True
+)
 
 
 # ============================================================
 # NAVIGATION
 # ============================================================
-
-st.markdown("""
-<div class="navbar">
-
-    <div class="brand">
-        🫀 AI Health Risk
-    </div>
-
-    <div class="subtitle">
-        Predict • Prevent • Live Better
-    </div>
-
-</div>
-""", unsafe_allow_html=True)
-
 
 page = st.radio(
     "Navigation",
@@ -416,33 +685,55 @@ page = st.radio(
 
 if page == "🏠 Home":
 
+
+    # ========================================================
     # HERO
+    # ========================================================
 
-    st.markdown("""
-    <div class="hero">
+    st.markdown(
+        textwrap.dedent("""
+        <div class="hero">
 
-        <div class="hero-label">
-            YOUR HEALTH OUR PRIORITY
+            <div class="hero-label">
+                YOUR HEALTH OUR PRIORITY
+            </div>
+
+            <div class="hero-title">
+                AI-Based Health<br>
+                Risk Prediction System
+            </div>
+
+            <div class="hero-text">
+                Machine Learning Based Health Risk Assessment
+                & Awareness Platform
+            </div>
+
+            <div class="hero-features">
+
+                <div class="hero-feature">
+                    🛡️ Early Risk Detection
+                </div>
+
+                <div class="hero-feature">
+                    📊 Data Driven Insights
+                </div>
+
+                <div class="hero-feature">
+                    👥 A Healthier Tomorrow
+                </div>
+
+            </div>
+
         </div>
-
-        <h1>
-            AI-Based Health<br>
-            Risk Prediction System
-        </h1>
-
-        <p>
-            Machine Learning Based Health Risk Assessment
-            & Awareness Platform
-        </p>
-
-    </div>
-    """, unsafe_allow_html=True)
+        """),
+        unsafe_allow_html=True
+    )
 
 
     st.info(
-        "⚠️ This system is for academic, educational and "
-        "health-awareness purposes only. "
-        "It is not a medical diagnosis."
+        "⚠️ This system is developed for academic, "
+        "educational and health-awareness purposes only. "
+        "It is NOT a medical diagnosis."
     )
 
 
@@ -451,13 +742,26 @@ if page == "🏠 Home":
     # ========================================================
 
     st.markdown(
-        '<div class="card">',
+        textwrap.dedent("""
+        <div class="main-card">
+
+            <div class="section-title">
+                👤 Patient Information
+            </div>
+
+            <div class="section-subtitle">
+                Enter patient details to save and track
+                health assessments.
+            </div>
+
+        </div>
+        """),
         unsafe_allow_html=True
     )
 
-    st.header("👤 Patient Information")
 
     p1, p2, p3 = st.columns(3)
+
 
     with p1:
 
@@ -466,12 +770,14 @@ if page == "🏠 Home":
             placeholder="Example: P001"
         )
 
+
     with p2:
 
         patient_name = st.text_input(
             "Patient Name",
             placeholder="Enter patient name"
         )
+
 
     with p3:
 
@@ -483,6 +789,7 @@ if page == "🏠 Home":
 
     p4, p5 = st.columns(2)
 
+
     with p4:
 
         email = st.text_input(
@@ -490,21 +797,13 @@ if page == "🏠 Home":
             placeholder="Optional"
         )
 
+
     with p5:
 
-        st.write("")
-
-        st.write("")
-
         st.caption(
-            "Patient ID connects all previous assessments."
+            "Patient ID is used to connect "
+            "all previous assessments."
         )
-
-
-    st.markdown(
-        '</div>',
-        unsafe_allow_html=True
-    )
 
 
     # ========================================================
@@ -512,16 +811,30 @@ if page == "🏠 Home":
     # ========================================================
 
     st.markdown(
-        '<div class="card">',
+        textwrap.dedent("""
+        <div class="main-card">
+
+            <div class="section-title">
+                🩺 Health & Lifestyle Information
+            </div>
+
+            <div class="section-subtitle">
+                Enter the health parameters used by
+                the machine learning model.
+            </div>
+
+        </div>
+        """),
         unsafe_allow_html=True
     )
 
-    st.header("🩺 Health & Lifestyle Information")
 
     c1, c2, c3 = st.columns(3)
 
 
+    # ========================================================
     # PERSONAL
+    # ========================================================
 
     with c1:
 
@@ -531,8 +844,10 @@ if page == "🏠 Home":
             "Age (years)",
             min_value=18,
             max_value=100,
-            value=30
+            value=30,
+            step=1
         )
+
 
         gender = st.selectbox(
             "Gender",
@@ -542,6 +857,7 @@ if page == "🏠 Home":
                 "Other"
             ]
         )
+
 
         bmi = st.number_input(
             "BMI (kg/m²)",
@@ -553,46 +869,59 @@ if page == "🏠 Home":
         )
 
 
+    # ========================================================
     # HEALTH
+    # ========================================================
 
     with c2:
 
         st.subheader("❤️ Health Parameters")
 
+
         blood_pressure = st.number_input(
             "Systolic Blood Pressure (mmHg)",
             min_value=70,
             max_value=220,
-            value=120
+            value=120,
+            step=1
         )
+
 
         glucose = st.number_input(
             "Glucose Level (mg/dL)",
             min_value=50,
             max_value=300,
-            value=100
+            value=100,
+            step=1
         )
+
 
         cholesterol = st.number_input(
             "Cholesterol Level (mg/dL)",
             min_value=80,
             max_value=400,
-            value=180
+            value=180,
+            step=1
         )
 
 
+    # ========================================================
     # LIFESTYLE
+    # ========================================================
 
     with c3:
 
         st.subheader("🏃 Lifestyle")
 
+
         physical_activity = st.slider(
             "Physical Activity (hours/week)",
             min_value=0,
             max_value=20,
-            value=3
+            value=3,
+            step=1
         )
+
 
         smoking = st.selectbox(
             "Smoking Habit",
@@ -601,6 +930,7 @@ if page == "🏠 Home":
                 "Yes"
             ]
         )
+
 
         family_history = st.selectbox(
             "Family History of Diabetes",
@@ -611,21 +941,17 @@ if page == "🏠 Home":
         )
 
 
-    st.markdown(
-        '</div>',
-        unsafe_allow_html=True
-    )
-
-
     # ========================================================
     # PREDICT BUTTON
     # ========================================================
 
     st.markdown("<br>", unsafe_allow_html=True)
 
+
     b1, b2, b3 = st.columns(
         [1, 2, 1]
     )
+
 
     with b2:
 
@@ -640,6 +966,11 @@ if page == "🏠 Home":
     # ========================================================
 
     if predict_button:
+
+
+        # ----------------------------------------------------
+        # VALIDATION
+        # ----------------------------------------------------
 
         if not patient_id.strip():
 
@@ -659,13 +990,16 @@ if page == "🏠 Home":
             st.stop()
 
 
-        # Convert categorical values
+        # ----------------------------------------------------
+        # CATEGORICAL VALUES
+        # ----------------------------------------------------
 
         smoking_value = (
             1
             if smoking == "Yes"
             else 0
         )
+
 
         family_history_value = (
             1
@@ -674,7 +1008,9 @@ if page == "🏠 Home":
         )
 
 
-        # Input dataframe
+        # ----------------------------------------------------
+        # INPUT DATA
+        # ----------------------------------------------------
 
         input_data = pd.DataFrame([{
 
@@ -703,7 +1039,9 @@ if page == "🏠 Home":
         }])
 
 
-        # Prediction
+        # ----------------------------------------------------
+        # MODEL
+        # ----------------------------------------------------
 
         try:
 
@@ -711,15 +1049,21 @@ if page == "🏠 Home":
                 input_data
             )
 
+
             prediction = model.predict(
                 input_scaled
             )[0]
+
 
             probability = model.predict_proba(
                 input_scaled
             )[0][1]
 
-            percentage = probability * 100
+
+            percentage = (
+                probability * 100
+            )
+
 
         except Exception as e:
 
@@ -782,12 +1126,19 @@ if page == "🏠 Home":
         # ====================================================
 
         save_patient(
+
             patient_id.strip(),
+
             patient_name.strip(),
+
             age,
+
             gender,
+
             phone,
+
             email
+
         )
 
 
@@ -822,6 +1173,7 @@ if page == "🏠 Home":
             category,
 
             prediction_text
+
         )
 
 
@@ -863,7 +1215,9 @@ if page == "🏠 Home":
             )
 
 
-        # Risk status
+        # ----------------------------------------------------
+        # CATEGORY MESSAGE
+        # ----------------------------------------------------
 
         if category == "LOW RISK":
 
@@ -871,11 +1225,13 @@ if page == "🏠 Home":
                 "🟢 LOW RISK"
             )
 
+
         elif category == "MEDIUM RISK":
 
             st.warning(
                 "🟡 MEDIUM RISK"
             )
+
 
         else:
 
@@ -884,7 +1240,9 @@ if page == "🏠 Home":
             )
 
 
-        # Progress
+        # ----------------------------------------------------
+        # PROGRESS
+        # ----------------------------------------------------
 
         st.progress(
             min(
@@ -901,6 +1259,7 @@ if page == "🏠 Home":
             f"**Risk Percentage:** "
             f"{percentage:.2f}%"
         )
+
 
         st.write(
             f"**Assessment:** {message}"
@@ -927,11 +1286,16 @@ if page == "🏠 Home":
         i1, i2, i3 = st.columns(3)
 
 
+        # ----------------------------------------------------
         # BMI
+        # ----------------------------------------------------
 
         with i1:
 
-            st.subheader("⚖️ BMI")
+            st.subheader(
+                "⚖️ BMI"
+            )
+
 
             if bmi < 18.5:
 
@@ -940,6 +1304,7 @@ if page == "🏠 Home":
                     "used healthy range."
                 )
 
+
             elif bmi < 25:
 
                 st.success(
@@ -947,11 +1312,13 @@ if page == "🏠 Home":
                     "used healthy range."
                 )
 
+
             elif bmi < 30:
 
                 st.warning(
                     "BMI is in the overweight range."
                 )
+
 
             else:
 
@@ -960,13 +1327,16 @@ if page == "🏠 Home":
                 )
 
 
+        # ----------------------------------------------------
         # BLOOD PRESSURE
+        # ----------------------------------------------------
 
         with i2:
 
             st.subheader(
                 "🩸 Blood Pressure"
             )
+
 
             if blood_pressure < 120:
 
@@ -975,12 +1345,14 @@ if page == "🏠 Home":
                     "is below 120 mmHg."
                 )
 
+
             elif blood_pressure < 130:
 
                 st.warning(
                     "Systolic blood pressure "
                     "is elevated."
                 )
+
 
             else:
 
@@ -991,11 +1363,16 @@ if page == "🏠 Home":
                 )
 
 
+        # ----------------------------------------------------
         # GLUCOSE
+        # ----------------------------------------------------
 
         with i3:
 
-            st.subheader("🍬 Glucose")
+            st.subheader(
+                "🍬 Glucose"
+            )
+
 
             if glucose < 100:
 
@@ -1004,11 +1381,13 @@ if page == "🏠 Home":
                     "100 mg/dL."
                 )
 
+
             elif glucose < 126:
 
                 st.warning(
                     "Glucose level is elevated."
                 )
+
 
             else:
 
@@ -1024,9 +1403,11 @@ if page == "🏠 Home":
 
 else:
 
+
     st.header(
         "📋 Patient History"
     )
+
 
     st.write(
         "Search a Patient ID or patient name "
@@ -1034,13 +1415,19 @@ else:
     )
 
 
+    # ========================================================
+    # SEARCH
+    # ========================================================
+
     search = st.text_input(
         "🔎 Search Patient",
         placeholder="Example: P001 or Rahul"
     )
 
 
-    patients = get_patients(search)
+    patients = get_patients(
+        search
+    )
 
 
     if patients.empty:
@@ -1052,6 +1439,11 @@ else:
 
 
     else:
+
+
+        # ====================================================
+        # PATIENT SELECT
+        # ====================================================
 
         patient_options = (
             patients["patient_id"]
@@ -1075,21 +1467,26 @@ else:
             selected_id
         )
 
+
         history = get_history(
             selected_id
         )
 
 
         # ====================================================
-        # PATIENT CARD
+        # PATIENT INFORMATION
         # ====================================================
 
         if not patient.empty:
 
             person = patient.iloc[0]
 
+
             st.markdown(
-                '<div class="history-card">',
+                textwrap.dedent("""
+                <div class="history-card">
+                </div>
+                """),
                 unsafe_allow_html=True
             )
 
@@ -1129,10 +1526,20 @@ else:
                 )
 
 
-            st.markdown(
-                '</div>',
-                unsafe_allow_html=True
-            )
+            if person["phone"]:
+
+                st.write(
+                    f"📞 **Phone:** "
+                    f"{person['phone']}"
+                )
+
+
+            if person["email"]:
+
+                st.write(
+                    f"✉️ **Email:** "
+                    f"{person['email']}"
+                )
 
 
         # ====================================================
@@ -1141,7 +1548,13 @@ else:
 
         if not history.empty:
 
+
             st.divider()
+
+
+            # =================================================
+            # RISK TREND
+            # =================================================
 
             st.subheader(
                 "📈 Risk History"
@@ -1150,9 +1563,11 @@ else:
 
             chart_data = history.copy()
 
+
             chart_data["Date"] = pd.to_datetime(
                 chart_data["Date"]
             )
+
 
             chart_data = chart_data.sort_values(
                 "Date"
@@ -1196,7 +1611,9 @@ else:
 
             st.dataframe(
                 display_history,
+
                 use_container_width=True,
+
                 hide_index=True
             )
 
@@ -1228,13 +1645,16 @@ else:
             with d1:
 
                 st.write(
-                    f"**BMI:** {detail['BMI']}"
+                    f"**BMI:** "
+                    f"{detail['BMI']}"
                 )
+
 
                 st.write(
                     f"**Blood Pressure:** "
                     f"{detail['BloodPressure']} mmHg"
                 )
+
 
                 st.write(
                     f"**Glucose:** "
@@ -1249,10 +1669,12 @@ else:
                     f"{detail['Cholesterol']} mg/dL"
                 )
 
+
                 st.write(
                     f"**Physical Activity:** "
                     f"{detail['Activity']} hrs/week"
                 )
+
 
                 st.write(
                     f"**Smoking:** "
@@ -1267,10 +1689,12 @@ else:
                     f"{detail['FamilyHistory']}"
                 )
 
+
                 st.write(
                     f"**Risk:** "
                     f"{detail['Risk']:.2f}%"
                 )
+
 
                 st.write(
                     f"**Category:** "
@@ -1291,17 +1715,52 @@ else:
 
 st.divider()
 
-st.markdown("""
-<div class="disclaimer">
 
-ℹ️ <b>Disclaimer:</b>
+st.markdown(
+    textwrap.dedent("""
+    <div class="disclaimer">
 
-This tool provides an AI-based health risk
-assessment for educational and awareness
-purposes only.
+        ℹ️ <b>Disclaimer:</b>
 
-It is not a substitute for professional
-medical advice, diagnosis, or treatment.
+        This tool provides an AI-based health risk
+        assessment for educational and awareness
+        purposes only.
 
-</div>
-""", unsafe_allow_html=True)
+        <br><br>
+
+        It is not a substitute for professional
+        medical advice, diagnosis, or treatment.
+
+    </div>
+    """),
+    unsafe_allow_html=True
+)
+
+
+# ============================================================
+# FOOTER
+# ============================================================
+
+st.markdown(
+    textwrap.dedent("""
+    <div style="
+        text-align:center;
+        padding:25px;
+        color:#64748b;
+        font-size:13px;
+    ">
+
+        🩺 <b>AI-Based Health Risk Prediction System</b>
+
+        <br><br>
+
+        Developed as an Academic Machine Learning Project
+
+        <br>
+
+        © 2026 | Educational & Awareness Purpose Only
+
+    </div>
+    """),
+    unsafe_allow_html=True
+)
