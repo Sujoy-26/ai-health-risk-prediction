@@ -1,12 +1,13 @@
 import streamlit as st
 import pandas as pd
 import pickle
-from supabase import create_client, Client
+import uuid
+from datetime import datetime
+from supabase import create_client
 
-
-# =========================================================
-# CONFIG
-# =========================================================
+# ============================================================
+# PAGE CONFIG
+# ============================================================
 
 st.set_page_config(
     page_title="AI Health Risk",
@@ -14,23 +15,36 @@ st.set_page_config(
     layout="wide"
 )
 
+# ============================================================
+# SUPABASE CONNECTION
+# ============================================================
 
-# =========================================================
-# SUPABASE DATABASE
-# =========================================================
+try:
+    SUPABASE_URL = st.secrets["SUPABASE_URL"]
+    SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 
-SUPABASE_URL = st.secrets["SUPABASE_URL"]
-SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
+    supabase = create_client(
+        SUPABASE_URL,
+        SUPABASE_KEY
+    )
 
-supabase: Client = create_client(
-    SUPABASE_URL,
-    SUPABASE_KEY
-)
+except Exception as e:
+    st.error("Supabase connection failed.")
+    st.exception(e)
+    st.stop()
 
 
-# =========================================================
-# LOAD MODEL
-# =========================================================
+# ============================================================
+# SESSION STATE
+# ============================================================
+
+if "user" not in st.session_state:
+    st.session_state.user = None
+
+
+# ============================================================
+# LOAD ML MODEL
+# ============================================================
 
 try:
 
@@ -40,176 +54,561 @@ try:
     with open("scaler.pkl", "rb") as f:
         scaler = pickle.load(f)
 
-    MODEL_OK = True
-    MODEL_ERROR = ""
-
 except Exception as e:
 
-    MODEL_OK = False
-    MODEL_ERROR = str(e)
+    st.error(
+        "model.pkl or scaler.pkl could not be loaded."
+    )
+
+    st.exception(e)
+    st.stop()
 
 
-# =========================================================
-# PATIENT FUNCTIONS
-# =========================================================
+# ============================================================
+# AUTH FUNCTIONS
+# ============================================================
+
+def register_user(name, email, phone, password):
+
+    try:
+
+        response = supabase.auth.sign_up(
+            {
+                "email": email,
+                "password": password,
+                "options": {
+                    "data": {
+                        "full_name": name,
+                        "phone": phone
+                    }
+                }
+            }
+        )
+
+        if response.user is not None:
+
+            if response.session is None:
+
+                st.success(
+                    "Account created successfully!"
+                )
+
+                st.info(
+                    "Please check your email and verify "
+                    "your account before logging in."
+                )
+
+            else:
+
+                st.success(
+                    "Account created successfully!"
+                )
+
+            return True
+
+        return False
+
+    except Exception as e:
+
+        st.error(
+            f"Registration failed: {e}"
+        )
+
+        return False
+
+
+def login_user(email, password):
+
+    try:
+
+        response = supabase.auth.sign_in_with_password(
+            {
+                "email": email,
+                "password": password
+            }
+        )
+
+        if response.user is not None:
+
+            st.session_state.user = response.user
+
+            return True
+
+        return False
+
+    except Exception as e:
+
+        st.error(
+            f"Login failed: {e}"
+        )
+
+        return False
+
+
+def logout_user():
+
+    try:
+        supabase.auth.sign_out()
+    except:
+        pass
+
+    st.session_state.user = None
+
+    st.rerun()
+
+
+# ============================================================
+# AUTH PAGE
+# ============================================================
+
+def show_auth_page():
+
+    st.markdown(
+        """
+        <style>
+
+        .auth-box {
+            max-width: 650px;
+            margin: 50px auto;
+            background: white;
+            padding: 40px;
+            border-radius: 24px;
+            box-shadow: 0 8px 35px rgba(30,70,120,.12);
+        }
+
+        .auth-title {
+            text-align: center;
+            color: #12356f;
+            font-size: 40px;
+            font-weight: 800;
+        }
+
+        .auth-subtitle {
+            text-align: center;
+            color: #68778d;
+            margin-bottom: 30px;
+        }
+
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+    st.markdown(
+        """
+        <div class="auth-box">
+
+            <div class="auth-title">
+                🩺 AI Health Risk
+            </div>
+
+            <div class="auth-subtitle">
+                Predict • Prevent • Live Better
+            </div>
+
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+    login_tab, register_tab = st.tabs(
+        [
+            "🔐 Login",
+            "📝 Create Account"
+        ]
+    )
+
+    # ========================================================
+    # LOGIN
+    # ========================================================
+
+    with login_tab:
+
+        st.subheader("Welcome Back")
+
+        login_email = st.text_input(
+            "Email",
+            placeholder="Enter your email",
+            key="login_email"
+        )
+
+        login_password = st.text_input(
+            "Password",
+            type="password",
+            placeholder="Enter your password",
+            key="login_password"
+        )
+
+        if st.button(
+            "🔐 Login",
+            use_container_width=True
+        ):
+
+            if not login_email.strip():
+
+                st.error(
+                    "Please enter your email."
+                )
+
+            elif not login_password:
+
+                st.error(
+                    "Please enter your password."
+                )
+
+            else:
+
+                if login_user(
+                    login_email.strip(),
+                    login_password
+                ):
+
+                    st.success(
+                        "Login successful!"
+                    )
+
+                    st.rerun()
+
+
+    # ========================================================
+    # REGISTER
+    # ========================================================
+
+    with register_tab:
+
+        st.subheader("Create Your Account")
+
+        register_name = st.text_input(
+            "Full Name",
+            placeholder="Enter your full name",
+            key="register_name"
+        )
+
+        register_email = st.text_input(
+            "Email",
+            placeholder="Enter your email",
+            key="register_email"
+        )
+
+        register_phone = st.text_input(
+            "Phone Number",
+            placeholder="Enter phone number",
+            key="register_phone"
+        )
+
+        register_password = st.text_input(
+            "Password",
+            type="password",
+            placeholder="Minimum 6 characters",
+            key="register_password"
+        )
+
+        register_confirm = st.text_input(
+            "Confirm Password",
+            type="password",
+            placeholder="Re-enter password",
+            key="register_confirm"
+        )
+
+        if st.button(
+            "📝 Create Account",
+            use_container_width=True
+        ):
+
+            if not register_name.strip():
+
+                st.error(
+                    "Please enter your name."
+                )
+
+            elif not register_email.strip():
+
+                st.error(
+                    "Please enter your email."
+                )
+
+            elif not register_phone.strip():
+
+                st.error(
+                    "Please enter your phone number."
+                )
+
+            elif len(register_password) < 6:
+
+                st.error(
+                    "Password must contain at least 6 characters."
+                )
+
+            elif register_password != register_confirm:
+
+                st.error(
+                    "Passwords do not match."
+                )
+
+            else:
+
+                register_user(
+                    register_name.strip(),
+                    register_email.strip(),
+                    register_phone.strip(),
+                    register_password
+                )
+
+    st.divider()
+
+    st.caption(
+        "🔒 Authentication is handled by Supabase."
+    )
+
+
+# ============================================================
+# SHOW LOGIN IF NOT LOGGED IN
+# ============================================================
+
+if st.session_state.user is None:
+
+    show_auth_page()
+
+    st.stop()
+
+
+# ============================================================
+# CURRENT USER
+# ============================================================
+
+current_user = st.session_state.user
+
+USER_ID = current_user.id
+
+USER_EMAIL = current_user.email or ""
+
+
+# ============================================================
+# CSS
+# ============================================================
+
+st.markdown(
+    """
+    <style>
+
+    .stApp {
+        background: #f5f9ff;
+    }
+
+    .block-container {
+        max-width: 1250px;
+        padding-top: 1rem;
+    }
+
+    .navbar {
+        background: white;
+        padding: 15px 22px;
+        border-radius: 16px;
+        margin-bottom: 18px;
+        box-shadow: 0 4px 18px rgba(30,70,120,.08);
+    }
+
+    .brand {
+        color: #12356f;
+        font-size: 27px;
+        font-weight: 800;
+    }
+
+    .subtitle {
+        color: #68778d;
+        font-size: 12px;
+    }
+
+    .hero {
+        background: linear-gradient(
+            135deg,
+            #dff1ff,
+            #c9e7ff,
+            #eef8ff
+        );
+
+        border-radius: 22px;
+        padding: 42px;
+        margin-bottom: 25px;
+    }
+
+    .hero-label {
+        color: #1267a8;
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 2px;
+    }
+
+    .hero h1 {
+        color: #102e68;
+        font-size: 43px;
+        line-height: 1.12;
+    }
+
+    .hero p {
+        color: #375477;
+        font-size: 18px;
+    }
+
+    .card {
+        background: white;
+        padding: 25px;
+        border-radius: 18px;
+        box-shadow: 0 5px 20px rgba(30,70,120,.08);
+        margin-bottom: 20px;
+    }
+
+    .history-card {
+        background: white;
+        padding: 22px;
+        border-radius: 18px;
+        box-shadow: 0 5px 20px rgba(30,70,120,.08);
+    }
+
+    .user-box {
+        background: white;
+        padding: 12px 18px;
+        border-radius: 14px;
+        box-shadow: 0 4px 15px rgba(30,70,120,.08);
+        margin-bottom: 15px;
+    }
+
+    .disclaimer {
+        background: #e4f2ff;
+        padding: 16px;
+        border-radius: 14px;
+        text-align: center;
+        color: #45627e;
+        font-size: 12px;
+    }
+
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+
+# ============================================================
+# NAVBAR
+# ============================================================
+
+st.markdown(
+    """
+    <div class="navbar">
+
+        <div class="brand">
+            🫀 AI Health Risk
+        </div>
+
+        <div class="subtitle">
+            Predict • Prevent • Live Better
+        </div>
+
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
+
+# ============================================================
+# USER BAR
+# ============================================================
+
+user_col, logout_col = st.columns(
+    [5, 1]
+)
+
+with user_col:
+
+    st.markdown(
+        f"""
+        <div class="user-box">
+            👤 <b>Logged in:</b> {USER_EMAIL}
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+with logout_col:
+
+    if st.button(
+        "Logout",
+        use_container_width=True
+    ):
+
+        logout_user()
+
+
+# ============================================================
+# DATABASE FUNCTIONS
+# ============================================================
 
 def generate_patient_id():
 
-    rows = (
-        supabase
-        .table("patients")
-        .select("patient_id")
-        .execute()
-        .data
+    return (
+        "P-"
+        + uuid.uuid4().hex[:8].upper()
     )
 
-    max_num = 0
-
-    for row in rows:
-
-        pid = str(row.get("patient_id", ""))
-
-        if pid.startswith("PAT-"):
-
-            try:
-                number = int(
-                    pid.replace("PAT-", "")
-                )
-
-                max_num = max(
-                    max_num,
-                    number
-                )
-
-            except ValueError:
-                pass
-
-    return f"PAT-{max_num + 1:04d}"
-
-
-# =========================================================
-# FIND EXISTING PATIENT
-# =========================================================
-
-def find_existing_patient(phone, name):
-
-    patient = None
-
-    # Search by phone first
-    if phone and phone.strip():
-
-        result = (
-            supabase
-            .table("patients")
-            .select("*")
-            .eq(
-                "phone",
-                phone.strip()
-            )
-            .limit(1)
-            .execute()
-        )
-
-        if result.data:
-            patient = result.data[0]
-
-
-    # If phone not found, search by name
-    if patient is None and name and name.strip():
-
-        result = (
-            supabase
-            .table("patients")
-            .select("*")
-            .ilike(
-                "patient_name",
-                name.strip()
-            )
-            .limit(1)
-            .execute()
-        )
-
-        if result.data:
-            patient = result.data[0]
-
-
-    return patient
-
-
-# =========================================================
-# SAVE PATIENT
-# =========================================================
 
 def save_patient(
     patient_id,
-    name,
+    patient_name,
     phone,
     email
 ):
 
-    (
-        supabase
-        .table("patients")
-        .insert({
+    try:
+
+        data = {
+
             "patient_id": patient_id,
-            "patient_name": name.strip(),
-            "phone": phone.strip(),
-            "email": email.strip()
-        })
-        .execute()
-    )
 
+            "patient_name": patient_name,
 
-# =========================================================
-# UPDATE PATIENT
-# =========================================================
+            "phone": phone,
 
-def update_patient(
-    patient_id,
-    name,
-    phone,
-    email
-):
+            "email": email,
 
-    (
-        supabase
-        .table("patients")
-        .update({
-            "patient_name": name.strip(),
-            "phone": phone.strip(),
-            "email": email.strip()
-        })
-        .eq(
-            "patient_id",
-            patient_id
+            "user_id": USER_ID
+        }
+
+        response = (
+            supabase
+            .table("patients")
+            .insert(data)
+            .execute()
         )
-        .execute()
-    )
 
+        return True
 
-# =========================================================
-# ASSESSMENT FUNCTIONS
-# =========================================================
+    except Exception as e:
+
+        st.error(
+            f"Patient save error: {e}"
+        )
+
+        return False
+
 
 def save_assessment(
     patient_id,
     age,
     gender,
     bmi,
-    bp,
+    blood_pressure,
     glucose,
     cholesterol,
-    activity,
+    physical_activity,
     smoking,
     family_history,
-    risk,
-    category
+    risk_probability,
+    risk_category
 ):
 
-    (
-        supabase
-        .table("assessments")
-        .insert({
+    try:
+
+        data = {
 
             "patient_id": patient_id,
 
@@ -219,465 +618,144 @@ def save_assessment(
 
             "bmi": bmi,
 
-            "blood_pressure": bp,
+            "blood_pressure": blood_pressure,
 
             "glucose": glucose,
 
             "cholesterol": cholesterol,
 
-            "physical_activity": activity,
+            "physical_activity": physical_activity,
 
             "smoking": smoking,
 
             "family_history": family_history,
 
-            "risk_probability": risk,
+            "risk_probability": risk_probability,
 
-            "risk_category": category
+            "risk_category": risk_category,
 
-        })
-        .execute()
-    )
+            "user_id": USER_ID
+        }
 
+        (
+            supabase
+            .table("assessments")
+            .insert(data)
+            .execute()
+        )
 
-# =========================================================
-# GET PATIENTS
-# =========================================================
+        return True
+
+    except Exception as e:
+
+        st.error(
+            f"Assessment save error: {e}"
+        )
+
+        return False
+
 
 def get_patients(search=""):
 
-    result = (
-        supabase
-        .table("patients")
-        .select(
-            "patient_id, "
-            "patient_name, "
-            "phone, "
-            "email, "
-            "created_at"
-        )
-        .order(
-            "created_at",
-            desc=True
-        )
-        .execute()
-    )
+    try:
 
-    rows = result.data or []
-
-
-    if not rows:
-
-        return pd.DataFrame(
-            columns=[
-                "patient_id",
-                "patient_name",
-                "phone",
-                "email",
-                "created_at"
-            ]
+        query = (
+            supabase
+            .table("patients")
+            .select("*")
+            .eq("user_id", USER_ID)
         )
 
+        if search.strip():
 
-    df = pd.DataFrame(rows)
-
-
-    # Search
-    if search.strip():
-
-        value = search.strip().lower()
-
-        mask = (
-
-            df["patient_id"]
-            .fillna("")
-            .astype(str)
-            .str.lower()
-            .str.contains(
-                value,
-                regex=False
+            query = query.or_(
+                f"patient_id.ilike.%{search}%,"
+                f"patient_name.ilike.%{search}%,"
+                f"phone.ilike.%{search}%"
             )
 
-            |
+        response = query.execute()
 
-            df["patient_name"]
-            .fillna("")
-            .astype(str)
-            .str.lower()
-            .str.contains(
-                value,
-                regex=False
-            )
+        data = response.data or []
 
-            |
+        return pd.DataFrame(data)
 
-            df["phone"]
-            .fillna("")
-            .astype(str)
-            .str.lower()
-            .str.contains(
-                value,
-                regex=False
-            )
+    except Exception as e:
+
+        st.error(
+            f"Patient history error: {e}"
         )
 
-        df = df[mask]
+        return pd.DataFrame()
 
 
-    return df.reset_index(
-        drop=True
-    )
+def get_patient(patient_id):
 
+    try:
 
-# =========================================================
-# GET PATIENT HISTORY
-# =========================================================
+        response = (
+            supabase
+            .table("patients")
+            .select("*")
+            .eq("patient_id", patient_id)
+            .eq("user_id", USER_ID)
+            .execute()
+        )
+
+        return response.data or []
+
+    except Exception as e:
+
+        st.error(
+            f"Patient details error: {e}"
+        )
+
+        return []
+
 
 def get_history(patient_id):
 
-    result = (
-        supabase
-        .table("assessments")
-        .select(
-            "id, "
-            "assessment_date, "
-            "age, "
-            "gender, "
-            "bmi, "
-            "blood_pressure, "
-            "glucose, "
-            "cholesterol, "
-            "physical_activity, "
-            "smoking, "
-            "family_history, "
-            "risk_probability, "
-            "risk_category"
-        )
-        .eq(
-            "patient_id",
-            patient_id
-        )
-        .order(
-            "assessment_date",
-            desc=False
-        )
-        .execute()
-    )
+    try:
 
-    rows = result.data or []
-
-
-    if not rows:
-
-        return pd.DataFrame(
-            columns=[
-                "id",
+        response = (
+            supabase
+            .table("assessments")
+            .select("*")
+            .eq("patient_id", patient_id)
+            .eq("user_id", USER_ID)
+            .order(
                 "assessment_date",
-                "age",
-                "gender",
-                "bmi",
-                "blood_pressure",
-                "glucose",
-                "cholesterol",
-                "physical_activity",
-                "smoking",
-                "family_history",
-                "risk_probability",
-                "risk_category"
-            ]
+                desc=True
+            )
+            .execute()
         )
 
+        data = response.data or []
 
-    return pd.DataFrame(rows)
+        if not data:
 
+            return pd.DataFrame()
 
-# =========================================================
-# CSS
-# =========================================================
+        df = pd.DataFrame(data)
 
-st.markdown("""
-<style>
+        df["Date"] = pd.to_datetime(
+            df["assessment_date"]
+        )
 
-/* ---------- PAGE ---------- */
+        return df
 
-[data-testid="stAppViewContainer"] {
-    background: #f4f9fc !important;
-}
+    except Exception as e:
 
-[data-testid="stHeader"] {
-    background: transparent !important;
-}
+        st.error(
+            f"Assessment history error: {e}"
+        )
 
-.block-container {
-    max-width: 1250px;
-    padding-top: 15px;
-}
+        return pd.DataFrame()
 
 
-/* ---------- HERO ---------- */
-
-.hero {
-    background: linear-gradient(
-        135deg,
-        #e4f7ff,
-        #ffffff
-    );
-
-    border: 1px solid #c7e5f0;
-    border-radius: 28px;
-
-    padding: 40px;
-
-    margin-bottom: 28px;
-
-    box-shadow:
-        0 10px 30px rgba(30,90,120,.08);
-}
-
-.hero-label {
-    color: #087da8 !important;
-    font-size: 14px;
-    font-weight: 800;
-    letter-spacing: 2px;
-}
-
-.hero-title {
-    color: #123b55 !important;
-    font-size: 42px;
-    font-weight: 900;
-    margin: 8px 0 12px 0;
-}
-
-.hero-subtitle {
-    color: #4f6f80 !important;
-    font-size: 17px;
-    line-height: 1.6;
-}
-
-
-/* ---------- SECTION ---------- */
-
-.section-title {
-    color: #087da8 !important;
-    font-size: 25px;
-    font-weight: 850;
-    margin: 25px 0 15px 0;
-}
-
-
-/* ---------- FEATURE ---------- */
-
-.feature-card {
-    background: #ffffff !important;
-    border: 1px solid #d5e7ef;
-    border-radius: 20px;
-    padding: 24px;
-    min-height: 150px;
-    box-shadow: 0 7px 20px rgba(30,80,100,.07);
-}
-
-.feature-card h3 {
-    color: #123b55 !important;
-    font-size: 19px;
-    font-weight: 850;
-    margin: 0 0 12px 0;
-}
-
-.feature-card p {
-    color: #587180 !important;
-    font-size: 14px;
-    line-height: 1.6;
-    margin: 0;
-}
-
-
-/* ---------- PATIENT ID ---------- */
-
-.id-card {
-    background: #e7f7ff !important;
-    border: 1px solid #bfe3f1;
-    border-radius: 16px;
-    padding: 16px;
-    text-align: center;
-}
-
-.id-small {
-    color: #52717f !important;
-    font-size: 12px;
-    font-weight: 800;
-}
-
-.id-text {
-    color: #087da8 !important;
-    font-size: 21px;
-    font-weight: 900;
-    margin-top: 5px;
-}
-
-
-/* ---------- RESULT ---------- */
-
-.result-card {
-    background: #ffffff !important;
-    border: 1px solid #d5e7ef;
-    border-radius: 24px;
-    padding: 30px;
-    text-align: center;
-    margin: 25px 0;
-    box-shadow: 0 10px 28px rgba(20,70,90,.08);
-}
-
-.result-label {
-    color: #607986 !important;
-    font-size: 14px;
-    font-weight: 750;
-}
-
-.patient-result-id {
-    color: #087da8 !important;
-    font-size: 30px;
-    font-weight: 900;
-}
-
-.risk-number {
-    color: #123b55 !important;
-    font-size: 52px;
-    font-weight: 900;
-}
-
-
-/* ---------- STREAMLIT LABELS ---------- */
-
-[data-testid="stWidgetLabel"] p,
-[data-testid="stWidgetLabel"] span,
-[data-testid="stWidgetLabel"] div {
-    color: #24495d !important;
-    font-weight: 650 !important;
-}
-
-
-/* ---------- TEXT INPUT ---------- */
-
-[data-testid="stTextInput"] input {
-    color: #ffffff !important;
-    background-color: #292b34 !important;
-    border-radius: 10px !important;
-}
-
-[data-testid="stTextInput"] input::placeholder {
-    color: #d5d8dd !important;
-}
-
-
-/* ---------- NUMBER INPUT ---------- */
-
-[data-testid="stNumberInput"] input {
-    color: #ffffff !important;
-    background-color: #292b34 !important;
-    border-radius: 10px !important;
-}
-
-
-/* ---------- SELECTBOX ---------- */
-
-[data-baseweb="select"] {
-    background-color: #292b34 !important;
-    border-radius: 10px !important;
-}
-
-[data-baseweb="select"] * {
-    color: #ffffff !important;
-}
-
-
-/* ---------- INFO ---------- */
-
-[data-testid="stAlert"] {
-    border-radius: 12px !important;
-}
-
-
-/* ---------- BUTTON ---------- */
-
-.stButton > button {
-    background: #087da8 !important;
-    color: #ffffff !important;
-    border: none !important;
-    border-radius: 11px !important;
-    font-weight: 750 !important;
-    min-height: 48px;
-}
-
-.stButton > button:hover {
-    background: #066b90 !important;
-}
-
-
-/* ---------- METRICS ---------- */
-
-[data-testid="stMetricLabel"] {
-    color: #52717f !important;
-}
-
-[data-testid="stMetricValue"] {
-    color: #123b55 !important;
-}
-
-
-/* ---------- NAVIGATION ---------- */
-
-div[role="radiogroup"] {
-    display: flex !important;
-    justify-content: center !important;
-    gap: 12px !important;
-    margin: 8px 0 25px 0 !important;
-}
-
-div[role="radiogroup"] label {
-    background: #ffffff !important;
-    border: 1px solid #d5e7ef !important;
-    border-radius: 12px !important;
-    padding: 9px 20px !important;
-    cursor: pointer !important;
-}
-
-div[role="radiogroup"] label p {
-    color: #123b55 !important;
-    font-weight: 750 !important;
-}
-
-div[role="radiogroup"] label:hover {
-    background: #e8f7ff !important;
-    border-color: #087da8 !important;
-}
-
-div[role="radiogroup"] label[data-checked="true"] {
-    background: #087da8 !important;
-    border-color: #087da8 !important;
-}
-
-div[role="radiogroup"] label[data-checked="true"] p {
-    color: #ffffff !important;
-}
-
-
-/* ---------- FOOTER ---------- */
-
-.footer {
-    color: #71848f !important;
-    text-align: center;
-    font-size: 12px;
-    line-height: 1.7;
-    margin-top: 35px;
-}
-
-</style>
-""", unsafe_allow_html=True)
-
-
-# =========================================================
+# ============================================================
 # NAVIGATION
-# =========================================================
+# ============================================================
 
 page = st.radio(
     "Navigation",
@@ -690,186 +768,110 @@ page = st.radio(
 )
 
 
-# =========================================================
+# ============================================================
 # HOME PAGE
-# =========================================================
+# ============================================================
 
 if page == "🏠 Home":
 
-    # HERO
-
-    st.html("""
-    <div class="hero">
-
-        <div class="hero-label">
-            🫀 AI HEALTH RISK
-        </div>
-
-        <div class="hero-title">
-            YOUR HEALTH, OUR PRIORITY
-        </div>
-
-        <div class="hero-subtitle">
-            AI-Based Health Risk Prediction System
-        </div>
-
-        <div class="hero-subtitle">
-            Machine Learning Based Health Risk
-            Assessment & Awareness Platform
-        </div>
-
-    </div>
-    """)
-
-
-    # FEATURES
-
-    c1, c2, c3 = st.columns(3)
-
-
-    with c1:
-
-        st.html("""
-        <div class="feature-card">
-
-            <h3>
-                🔍 Early Risk Detection
-            </h3>
-
-            <p>
-                Identify potential health risks using
-                health and lifestyle information.
-            </p>
-
-        </div>
-        """)
-
-
-    with c2:
-
-        st.html("""
-        <div class="feature-card">
-
-            <h3>
-                📊 Data Driven Insights
-            </h3>
-
-            <p>
-                Machine learning based analysis of
-                important health indicators.
-            </p>
-
-        </div>
-        """)
-
-
-    with c3:
-
-        st.html("""
-        <div class="feature-card">
-
-            <h3>
-                🌱 A Healthier Tomorrow
-            </h3>
-
-            <p>
-                Understand your risk level and become
-                more aware of your health.
-            </p>
-
-        </div>
-        """)
-
-
-    # PATIENT INFORMATION
-
     st.markdown(
-        '<div class="section-title">'
-        '👤 Patient Information'
-        '</div>',
+        """
+        <div class="hero">
+
+            <div class="hero-label">
+                YOUR HEALTH, OUR PRIORITY
+            </div>
+
+            <h1>
+                AI-Based Health<br>
+                Risk Prediction System
+            </h1>
+
+            <p>
+                Machine Learning Based Health Risk
+                Assessment & Awareness Platform
+            </p>
+
+        </div>
+        """,
         unsafe_allow_html=True
     )
 
 
-    p1, p2, p3 = st.columns(3)
+    st.info(
+        "⚠️ This system is for academic, educational "
+        "and health-awareness purposes only. "
+        "It is not a medical diagnosis."
+    )
 
 
-    with p1:
+    # ========================================================
+    # PATIENT INFORMATION
+    # ========================================================
 
-        st.html("""
-        <div class="id-card">
+    st.markdown(
+        '<div class="card">',
+        unsafe_allow_html=True
+    )
 
-            <div class="id-small">
-                PATIENT ID
-            </div>
+    st.header("👤 Patient Information")
 
-            <div class="id-text">
-                AUTO GENERATED
-            </div>
+    col1, col2 = st.columns(2)
 
-        </div>
-        """)
-
-
-    with p2:
+    with col1:
 
         patient_name = st.text_input(
             "Patient Name",
             placeholder="Enter patient name"
         )
 
-
-    with p3:
+    with col2:
 
         phone = st.text_input(
             "Phone Number",
-            placeholder="Optional"
+            placeholder="Enter phone number"
         )
 
+    email = st.text_input(
+        "Email",
+        value=USER_EMAIL,
+        disabled=True
+    )
 
-    p4, p5 = st.columns(2)
-
-
-    with p4:
-
-        email = st.text_input(
-            "Email",
-            placeholder="Optional"
-        )
-
-
-    with p5:
-
-        st.info(
-            "Patient ID will be generated automatically "
-            "after prediction."
-        )
-
-
-    # HEALTH INFORMATION
+    st.caption(
+        "Patient ID will be automatically generated "
+        "after prediction."
+    )
 
     st.markdown(
-        '<div class="section-title">'
-        '🩺 Health Information'
         '</div>',
         unsafe_allow_html=True
     )
 
 
-    h1, h2, h3, h4 = st.columns(4)
+    # ========================================================
+    # HEALTH INFORMATION
+    # ========================================================
 
+    st.markdown(
+        '<div class="card">',
+        unsafe_allow_html=True
+    )
 
-    with h1:
+    st.header(
+        "🩺 Health & Lifestyle Information"
+    )
+
+    c1, c2, c3 = st.columns(3)
+
+    with c1:
 
         age = st.number_input(
-            "Age",
-            min_value=1,
-            max_value=120,
-            value=25
+            "Age (years)",
+            min_value=18,
+            max_value=100,
+            value=30
         )
-
-
-    with h2:
 
         gender = st.selectbox(
             "Gender",
@@ -880,190 +882,154 @@ if page == "🏠 Home":
             ]
         )
 
-
-    with h3:
-
         bmi = st.number_input(
-            "BMI",
-            min_value=5.0,
-            max_value=80.0,
-            value=22.0,
-            step=0.1
+            "BMI (kg/m²)",
+            min_value=10.0,
+            max_value=60.0,
+            value=24.0,
+            step=0.1,
+            format="%.2f"
         )
 
-
-    with h4:
+    with c2:
 
         blood_pressure = st.number_input(
-            "Systolic Blood Pressure",
-            min_value=60,
-            max_value=250,
+            "Systolic Blood Pressure (mmHg)",
+            min_value=70,
+            max_value=220,
             value=120
         )
 
-
-    h5, h6, h7, h8 = st.columns(4)
-
-
-    with h5:
-
         glucose = st.number_input(
-            "Glucose",
-            min_value=40,
-            max_value=500,
+            "Glucose Level (mg/dL)",
+            min_value=50,
+            max_value=300,
             value=100
         )
 
-
-    with h6:
-
         cholesterol = st.number_input(
-            "Cholesterol",
-            min_value=50,
-            max_value=500,
+            "Cholesterol Level (mg/dL)",
+            min_value=80,
+            max_value=400,
             value=180
         )
 
+    with c3:
 
-    with h7:
-
-        physical_activity = st.number_input(
+        physical_activity = st.slider(
             "Physical Activity (hours/week)",
-            min_value=0.0,
-            max_value=50.0,
-            value=3.0,
-            step=0.5
+            min_value=0,
+            max_value=20,
+            value=3
         )
-
-
-    with h8:
 
         smoking = st.selectbox(
-            "Smoking",
+            "Smoking Habit",
             [
                 "No",
                 "Yes"
             ]
         )
-
-
-    l1, l2 = st.columns(2)
-
-
-    with l1:
 
         family_history = st.selectbox(
-            "Family History of Disease",
+            "Family History of Diabetes",
             [
                 "No",
                 "Yes"
             ]
         )
 
-
-    # PREDICT BUTTON
-
-    predict_button = st.button(
-        "🔮 Predict Health Risk",
-        use_container_width=True,
-        type="primary"
+    st.markdown(
+        '</div>',
+        unsafe_allow_html=True
     )
+
+
+    # ========================================================
+    # PREDICT
+    # ========================================================
+
+    _, middle, _ = st.columns(
+        [1, 2, 1]
+    )
+
+    with middle:
+
+        predict_button = st.button(
+            "🫀 Predict Health Risk →",
+            use_container_width=True
+        )
 
 
     if predict_button:
 
-        # VALIDATION
-
         if not patient_name.strip():
 
             st.error(
-                "Please enter the Patient Name."
+                "Please enter the patient name."
             )
 
             st.stop()
 
 
-        if not MODEL_OK:
+        # ====================================================
+        # AUTOMATIC PATIENT ID
+        # ====================================================
 
-            st.error(
-                "Model files could not be loaded."
-            )
+        patient_id = generate_patient_id()
 
-            st.code(MODEL_ERROR)
 
-            st.stop()
+        # ====================================================
+        # PREPARE MODEL INPUT
+        # ====================================================
 
+        smoking_value = (
+            1 if smoking == "Yes"
+            else 0
+        )
+
+        family_history_value = (
+            1 if family_history == "Yes"
+            else 0
+        )
+
+
+        input_data = pd.DataFrame(
+            [{
+                "Age": age,
+
+                "BMI": bmi,
+
+                "BloodPressure":
+                    blood_pressure,
+
+                "Glucose":
+                    glucose,
+
+                "Cholesterol":
+                    cholesterol,
+
+                "PhysicalActivity":
+                    physical_activity,
+
+                "Smoking":
+                    smoking_value,
+
+                "FamilyHistory":
+                    family_history_value
+            }]
+        )
+
+
+        # ====================================================
+        # PREDICTION
+        # ====================================================
 
         try:
-
-            # PATIENT
-
-            existing = find_existing_patient(
-                phone,
-                patient_name
-            )
-
-
-            if existing:
-
-                patient_id = existing["patient_id"]
-
-                update_patient(
-                    patient_id,
-                    patient_name,
-                    phone,
-                    email
-                )
-
-            else:
-
-                patient_id = generate_patient_id()
-
-                save_patient(
-                    patient_id,
-                    patient_name,
-                    phone,
-                    email
-                )
-
-
-            # YES / NO CONVERSION
-
-            smoking_value = (
-                1 if smoking == "Yes"
-                else 0
-            )
-
-            family_history_value = (
-                1 if family_history == "Yes"
-                else 0
-            )
-
-
-            # MODEL DATA
-
-            input_data = pd.DataFrame([
-                {
-                    "Age": age,
-                    "BMI": bmi,
-                    "BloodPressure": blood_pressure,
-                    "Glucose": glucose,
-                    "Cholesterol": cholesterol,
-                    "PhysicalActivity": physical_activity,
-                    "Smoking": smoking_value,
-                    "FamilyHistory": family_history_value
-                }
-            ])
-
-
-            # SCALE
 
             input_scaled = scaler.transform(
                 input_data
             )
-
-
-            # PREDICTION
 
             prediction = model.predict(
                 input_scaled
@@ -1076,7 +1042,8 @@ if page == "🏠 Home":
             ):
 
                 probability = (
-                    model.predict_proba(
+                    model
+                    .predict_proba(
                         input_scaled
                     )[0][1]
                 )
@@ -1088,439 +1055,492 @@ if page == "🏠 Home":
                 )
 
 
-            percentage = probability * 100
-
-
-            # RISK CATEGORY
-
-            if percentage < 10:
-
-                category = "LOW RISK"
-                emoji = "🟢"
-
-            elif percentage < 20:
-
-                category = "MEDIUM RISK"
-                emoji = "🟡"
-
-            else:
-
-                category = "HIGH RISK"
-                emoji = "🔴"
-
-
-            # SAVE TO SUPABASE
-
-            save_assessment(
-                patient_id,
-                age,
-                gender,
-                bmi,
-                blood_pressure,
-                glucose,
-                cholesterol,
-                physical_activity,
-                smoking,
-                family_history,
-                percentage,
-                category
-            )
-
-
-            # RESULT
-
-            st.html(f"""
-            <div class="result-card">
-
-                <div class="result-label">
-                    YOUR PATIENT ID
-                </div>
-
-                <div class="patient-result-id">
-                    {patient_id}
-                </div>
-
-                <br>
-
-                <div class="result-label">
-                    HEALTH RISK SCORE
-                </div>
-
-                <div class="risk-number">
-                    {percentage:.1f}%
-                </div>
-
-                <h2>
-                    {emoji} {category}
-                </h2>
-
-                <div class="result-label">
-                    Patient: {patient_name}
-                </div>
-
-            </div>
-            """)
-
-
-            # INSIGHTS
-
-            st.markdown(
-                '<div class="section-title">'
-                '💡 Health Insights'
-                '</div>',
-                unsafe_allow_html=True
-            )
-
-
-            i1, i2, i3 = st.columns(3)
-
-
-            if bmi < 18.5:
-
-                bmi_message = (
-                    "BMI is below the commonly "
-                    "used healthy range."
-                )
-
-            elif bmi < 25:
-
-                bmi_message = (
-                    "BMI is within the commonly "
-                    "used healthy range."
-                )
-
-            elif bmi < 30:
-
-                bmi_message = (
-                    "BMI is above the commonly "
-                    "used healthy range."
-                )
-
-            else:
-
-                bmi_message = (
-                    "BMI is in the obesity range."
-                )
-
-
-            if blood_pressure < 120:
-
-                bp_message = (
-                    "Systolic BP is below "
-                    "120 mmHg."
-                )
-
-            elif blood_pressure < 130:
-
-                bp_message = (
-                    "Systolic BP is elevated."
-                )
-
-            else:
-
-                bp_message = (
-                    "Systolic BP is high and "
-                    "deserves attention."
-                )
-
-
-            if physical_activity >= 3:
-
-                activity_message = (
-                    "Good level of physical activity."
-                )
-
-            else:
-
-                activity_message = (
-                    "Consider increasing regular "
-                    "physical activity."
-                )
-
-
-            with i1:
-
-                st.info(
-                    "**BMI Insight**\n\n"
-                    + bmi_message
-                )
-
-
-            with i2:
-
-                st.info(
-                    "**Blood Pressure**\n\n"
-                    + bp_message
-                )
-
-
-            with i3:
-
-                st.info(
-                    "**Lifestyle**\n\n"
-                    + activity_message
-                )
-
-
-            st.success(
-                "Assessment saved successfully. "
-                f"Patient ID: {patient_id}"
-            )
-
-
-            st.warning(
-                "⚠️ This result is for educational and "
-                "health-awareness purposes only. It is not "
-                "a medical diagnosis and should not replace "
-                "advice from a qualified healthcare professional."
+            percentage = (
+                probability * 100
             )
 
 
         except Exception as e:
 
             st.error(
-                "Prediction could not be completed."
+                "Prediction failed. "
+                "Please check model.pkl "
+                "and scaler.pkl."
             )
 
-            st.code(str(e))
+            st.exception(e)
 
-# =========================================================
+            st.stop()
+
+
+        # ====================================================
+        # RISK CATEGORY
+        # ====================================================
+
+        if percentage < 10:
+
+            category = "LOW RISK"
+
+            message = (
+                "Your estimated risk level "
+                "is relatively low."
+            )
+
+        elif percentage < 20:
+
+            category = "MEDIUM RISK"
+
+            message = (
+                "Your estimated risk level "
+                "is moderate. Maintaining "
+                "a healthy lifestyle is recommended."
+            )
+
+        else:
+
+            category = "HIGH RISK"
+
+            message = (
+                "Your estimated risk level "
+                "is relatively high. Consider "
+                "discussing your health parameters "
+                "with a qualified healthcare professional."
+            )
+
+
+        # ====================================================
+        # SAVE PATIENT
+        # ====================================================
+
+        patient_saved = save_patient(
+
+            patient_id,
+
+            patient_name.strip(),
+
+            phone.strip(),
+
+            USER_EMAIL
+        )
+
+
+        if not patient_saved:
+
+            st.stop()
+
+
+        # ====================================================
+        # SAVE ASSESSMENT
+        # ====================================================
+
+        assessment_saved = save_assessment(
+
+            patient_id,
+
+            age,
+
+            gender,
+
+            bmi,
+
+            blood_pressure,
+
+            glucose,
+
+            cholesterol,
+
+            physical_activity,
+
+            smoking,
+
+            family_history,
+
+            percentage,
+
+            category
+        )
+
+
+        # ====================================================
+        # RESULT
+        # ====================================================
+
+        st.divider()
+
+        st.header(
+            "📊 Prediction Result"
+        )
+
+
+        r1, r2, r3 = st.columns(3)
+
+
+        with r1:
+
+            st.metric(
+                "Estimated Risk",
+                f"{percentage:.2f}%"
+            )
+
+
+        with r2:
+
+            st.metric(
+                "Risk Category",
+                category
+            )
+
+
+        with r3:
+
+            st.metric(
+                "Patient ID",
+                patient_id
+            )
+
+
+        if category == "LOW RISK":
+
+            st.success(
+                "🟢 LOW RISK"
+            )
+
+        elif category == "MEDIUM RISK":
+
+            st.warning(
+                "🟡 MEDIUM RISK"
+            )
+
+        else:
+
+            st.error(
+                "🔴 HIGH RISK"
+            )
+
+
+        st.progress(
+            min(
+                max(
+                    int(percentage),
+                    0
+                ),
+                100
+            )
+        )
+
+
+        st.write(
+            f"**Assessment:** {message}"
+        )
+
+
+        if assessment_saved:
+
+            st.success(
+                f"✅ Assessment saved successfully."
+            )
+
+            st.info(
+                f"Your Patient ID is **{patient_id}**"
+            )
+
+
+        # ====================================================
+        # HEALTH INSIGHTS
+        # ====================================================
+
+        st.divider()
+
+        st.header(
+            "💡 Health Insights"
+        )
+
+
+        i1, i2, i3 = st.columns(3)
+
+
+        with i1:
+
+            st.subheader("⚖️ BMI")
+
+            if bmi < 18.5:
+
+                st.info(
+                    "BMI is below the commonly "
+                    "used healthy range."
+                )
+
+            elif bmi < 25:
+
+                st.success(
+                    "BMI is within the commonly "
+                    "used healthy range."
+                )
+
+            elif bmi < 30:
+
+                st.warning(
+                    "BMI is in the overweight range."
+                )
+
+            else:
+
+                st.error(
+                    "BMI is in the obesity range."
+                )
+
+
+        with i2:
+
+            st.subheader(
+                "🩸 Blood Pressure"
+            )
+
+            if blood_pressure < 120:
+
+                st.success(
+                    "Systolic blood pressure "
+                    "is below 120 mmHg."
+                )
+
+            elif blood_pressure < 130:
+
+                st.warning(
+                    "Systolic blood pressure "
+                    "is elevated."
+                )
+
+            else:
+
+                st.warning(
+                    "Systolic blood pressure "
+                    "is elevated and may require "
+                    "professional evaluation."
+                )
+
+
+        with i3:
+
+            st.subheader(
+                "🍬 Glucose"
+            )
+
+            if glucose < 100:
+
+                st.success(
+                    "Glucose level is below "
+                    "100 mg/dL."
+                )
+
+            elif glucose < 126:
+
+                st.warning(
+                    "Glucose level is elevated."
+                )
+
+            else:
+
+                st.error(
+                    "Glucose level is significantly "
+                    "elevated."
+                )
+
+
+# ============================================================
 # PATIENT HISTORY
-# =========================================================
+# ============================================================
 
 else:
 
-    st.html("""
-    <div class="hero">
+    st.header(
+        "📋 Patient History"
+    )
 
-        <div class="hero-label">
-            📋 PATIENT HISTORY
-        </div>
-
-        <div class="hero-title">
-            PATIENT HEALTH RECORDS
-        </div>
-
-        <div class="hero-subtitle">
-            Search Patient ID, name or phone number
-            to view previous assessments.
-        </div>
-
-    </div>
-    """)
-
-
-    # SEARCH
-
-    search = st.text_input(
-        "🔎 Search Patient",
-        placeholder="Example: PAT-0001 or patient name"
+    st.write(
+        "View your previous health risk assessments."
     )
 
 
-    # GET PATIENTS FROM SUPABASE
+    search = st.text_input(
+        "🔎 Search Patient",
+        placeholder="Patient ID, name or phone"
+    )
 
-    patients_df = get_patients(search)
+
+    patients = get_patients(
+        search
+    )
 
 
-    if patients_df.empty:
+    if patients.empty:
 
         st.info(
             "No patient records found."
         )
 
-
     else:
 
-        selected_patient = st.selectbox(
+        patient_options = (
+
+            patients["patient_id"]
+            .astype(str)
+
+            + " — "
+
+            + patients["patient_name"]
+            .astype(str)
+
+        ).tolist()
+
+
+        selected = st.selectbox(
             "Select Patient",
-            patients_df["patient_id"].tolist()
+            patient_options
         )
 
 
-        selected_row = patients_df[
-            patients_df["patient_id"]
-            == selected_patient
-        ].iloc[0]
+        selected_id = selected.split(
+            " — "
+        )[0]
 
 
-        # =================================================
+        patient_data = get_patient(
+            selected_id
+        )
+
+
+        history = get_history(
+            selected_id
+        )
+
+
+        # ====================================================
         # PATIENT DETAILS
-        # =================================================
+        # ====================================================
 
-        st.markdown(
-            '<div class="section-title">'
-            '👤 Patient Details'
-            '</div>',
-            unsafe_allow_html=True
-        )
+        if patient_data:
 
+            person = patient_data[0]
 
-        d1, d2, d3, d4 = st.columns(4)
-
-
-        with d1:
-
-            st.metric(
-                "Patient ID",
-                selected_row["patient_id"]
-            )
-
-
-        with d2:
-
-            st.metric(
-                "Patient Name",
-                selected_row["patient_name"]
-            )
-
-
-        with d3:
-
-            st.metric(
-                "Phone",
-                selected_row["phone"]
-                if selected_row["phone"]
-                else "Not provided"
-            )
-
-
-        with d4:
-
-            st.metric(
-                "Email",
-                selected_row["email"]
-                if selected_row["email"]
-                else "Not provided"
-            )
-
-
-        # =================================================
-        # HISTORY
-        # =================================================
-
-        history_df = get_history(
-            selected_patient
-        )
-
-
-        if history_df.empty:
-
-            st.info(
-                "No assessments found for this patient."
-            )
-
-
-        else:
-
-            # =================================================
-            # RISK HISTORY
-            # =================================================
 
             st.markdown(
-                '<div class="section-title">'
-                '📈 Risk History'
+                '<div class="history-card">',
+                unsafe_allow_html=True
+            )
+
+
+            h1, h2, h3 = st.columns(3)
+
+
+            with h1:
+
+                st.metric(
+                    "Patient ID",
+                    person.get(
+                        "patient_id",
+                        "-"
+                    )
+                )
+
+
+            with h2:
+
+                st.metric(
+                    "Name",
+                    person.get(
+                        "patient_name",
+                        "-"
+                    )
+                )
+
+
+            with h3:
+
+                st.metric(
+                    "Phone",
+                    person.get(
+                        "phone",
+                        "-"
+                    )
+                )
+
+
+            st.markdown(
                 '</div>',
                 unsafe_allow_html=True
             )
 
 
-            chart_df = history_df[
-                [
-                    "assessment_date",
-                    "risk_probability"
-                ]
-            ].copy()
+        # ====================================================
+        # HISTORY
+        # ====================================================
 
+        if not history.empty:
 
-            chart_df["assessment_date"] = (
-                pd.to_datetime(
-                    chart_df["assessment_date"]
-                )
+            st.divider()
+
+            st.subheader(
+                "📈 Risk History"
             )
 
 
-            chart_df = chart_df.set_index(
-                "assessment_date"
+            chart_data = history.copy()
+
+            chart_data = chart_data.sort_values(
+                "Date"
             )
 
 
             st.line_chart(
-                chart_df["risk_probability"],
-                use_container_width=True
+                chart_data.set_index(
+                    "Date"
+                )["risk_probability"]
             )
 
 
-            st.caption(
-                "Risk probability (%) across previous assessments."
+            st.subheader(
+                "🗂️ Previous Assessments"
             )
 
 
-            # =================================================
-            # PREVIOUS ASSESSMENTS
-            # =================================================
-
-            st.markdown(
-                '<div class="section-title">'
-                '📊 Previous Assessments'
-                '</div>',
-                unsafe_allow_html=True
-            )
+            display_history = history[
+                [
+                    "Date",
+                    "risk_probability",
+                    "risk_category"
+                ]
+            ].copy()
 
 
-            display_df = history_df.copy()
-
-
-            display_df[
+            display_history[
+                "Risk"
+            ] = display_history[
                 "risk_probability"
-            ] = display_df[
-                "risk_probability"
-            ].round(1)
+            ].apply(
+                lambda x:
+                f"{float(x):.2f}%"
+            )
 
 
-            display_df = display_df.rename(
-                columns={
-
-                    "assessment_date":
+            display_history = (
+                display_history[
+                    [
                         "Date",
-
-                    "bmi":
-                        "BMI",
-
-                    "blood_pressure":
-                        "Blood Pressure",
-
-                    "glucose":
-                        "Glucose",
-
-                    "cholesterol":
-                        "Cholesterol",
-
-                    "physical_activity":
-                        "Activity Hours",
-
-                    "risk_probability":
-                        "Risk %",
-
-                    "risk_category":
-                        "Risk Category"
-                }
+                        "Risk",
+                        "risk_category"
+                    ]
+                ]
+                .rename(
+                    columns={
+                        "risk_category":
+                            "Category"
+                    }
+                )
             )
 
 
             st.dataframe(
-                display_df[
-                    [
-                        "Date",
-                        "BMI",
-                        "Blood Pressure",
-                        "Glucose",
-                        "Cholesterol",
-                        "Activity Hours",
-                        "Risk %",
-                        "Risk Category"
-                    ]
-                ],
+                display_history,
                 use_container_width=True,
                 hide_index=True
             )
@@ -1530,129 +1550,107 @@ else:
             # ASSESSMENT DETAILS
             # =================================================
 
-            st.markdown(
-                '<div class="section-title">'
-                '🔍 Assessment Details'
-                '</div>',
-                unsafe_allow_html=True
+            st.subheader(
+                "🔍 Assessment Details"
             )
 
 
-            assessment_numbers = list(
-                range(
-                    1,
-                    len(history_df) + 1
-                )
+            selected_date = st.selectbox(
+                "Select an assessment",
+                history["Date"].tolist()
             )
 
 
-            selected_number = st.selectbox(
-                "Select Assessment",
-                assessment_numbers,
-                index=len(assessment_numbers) - 1
+            detail = history[
+                history["Date"]
+                == selected_date
+            ].iloc[0]
+
+
+            d1, d2, d3 = st.columns(3)
+
+
+            with d1:
+
+                st.write(
+                    f"**BMI:** "
+                    f"{detail['bmi']}"
+                )
+
+                st.write(
+                    f"**Blood Pressure:** "
+                    f"{detail['blood_pressure']} mmHg"
+                )
+
+                st.write(
+                    f"**Glucose:** "
+                    f"{detail['glucose']} mg/dL"
+                )
+
+
+            with d2:
+
+                st.write(
+                    f"**Cholesterol:** "
+                    f"{detail['cholesterol']} mg/dL"
+                )
+
+                st.write(
+                    f"**Physical Activity:** "
+                    f"{detail['physical_activity']} hrs/week"
+                )
+
+                st.write(
+                    f"**Smoking:** "
+                    f"{detail['smoking']}"
+                )
+
+
+            with d3:
+
+                st.write(
+                    f"**Family History:** "
+                    f"{detail['family_history']}"
+                )
+
+                st.write(
+                    f"**Risk:** "
+                    f"{float(detail['risk_probability']):.2f}%"
+                )
+
+                st.write(
+                    f"**Category:** "
+                    f"{detail['risk_category']}"
+                )
+
+
+        else:
+
+            st.info(
+                "No assessment history available."
             )
 
 
-            assessment = history_df.iloc[
-                selected_number - 1
-            ]
+# ============================================================
+# DISCLAIMER
+# ============================================================
 
+st.divider()
 
-            a1, a2, a3, a4 = st.columns(4)
+st.markdown(
+    """
+    <div class="disclaimer">
 
+    ℹ️ <b>Disclaimer:</b>
 
-            with a1:
+    This tool provides an AI-based health risk
+    assessment for educational and awareness
+    purposes only.
 
-                st.metric(
-                    "Risk",
-                    f"{assessment['risk_probability']:.1f}%"
-                )
+    It is not a substitute for professional
+    medical advice, diagnosis, or treatment.
 
-
-            with a2:
-
-                st.metric(
-                    "Category",
-                    assessment["risk_category"]
-                )
-
-
-            with a3:
-
-                st.metric(
-                    "BMI",
-                    f"{assessment['bmi']:.1f}"
-                )
-
-
-            with a4:
-
-                st.metric(
-                    "Glucose",
-                    f"{assessment['glucose']:.0f}"
-                )
-
-
-            # =================================================
-            # DETAILS TABLE
-            # =================================================
-
-            detail_df = pd.DataFrame({
-
-                "Parameter": [
-
-                    "Age",
-                    "Gender",
-                    "BMI",
-                    "Blood Pressure",
-                    "Glucose",
-                    "Cholesterol",
-                    "Physical Activity",
-                    "Smoking",
-                    "Family History",
-                    "Assessment Date"
-
-                ],
-
-                "Value": [
-
-                    assessment["age"],
-                    assessment["gender"],
-                    assessment["bmi"],
-                    assessment["blood_pressure"],
-                    assessment["glucose"],
-                    assessment["cholesterol"],
-                    assessment["physical_activity"],
-                    assessment["smoking"],
-                    assessment["family_history"],
-                    assessment["assessment_date"]
-
-                ]
-
-            })
-
-
-            st.dataframe(
-                detail_df,
-                use_container_width=True,
-                hide_index=True
-            )
-
-
-# =========================================================
-# FOOTER
-# =========================================================
-
-st.html("""
-<div class="footer">
-
-    AI Health Risk Prediction System
-    • Machine Learning Based Health Awareness Platform
-
-    <br>
-
-    ⚠️ For educational and awareness purposes only.
-    Not a substitute for professional medical advice.
-
-</div>
-""")
+    </div>
+    """,
+    unsafe_allow_html=True
+)
