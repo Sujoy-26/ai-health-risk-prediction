@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import pickle
 import uuid
+import html
 from supabase import create_client
 
 
@@ -21,6 +22,7 @@ st.set_page_config(
 # ============================================================
 
 try:
+
     SUPABASE_URL = st.secrets["SUPABASE_URL"]
     SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 
@@ -30,6 +32,7 @@ try:
     )
 
 except Exception as e:
+
     st.error("Supabase connection failed.")
     st.exception(e)
     st.stop()
@@ -41,6 +44,35 @@ except Exception as e:
 
 if "user" not in st.session_state:
     st.session_state.user = None
+
+if "access_token" not in st.session_state:
+    st.session_state.access_token = None
+
+if "refresh_token" not in st.session_state:
+    st.session_state.refresh_token = None
+
+
+# ============================================================
+# RESTORE SUPABASE SESSION
+# ============================================================
+
+if (
+    st.session_state.access_token
+    and st.session_state.refresh_token
+):
+
+    try:
+
+        supabase.auth.set_session(
+            st.session_state.access_token,
+            st.session_state.refresh_token
+        )
+
+    except Exception:
+
+        st.session_state.user = None
+        st.session_state.access_token = None
+        st.session_state.refresh_token = None
 
 
 # ============================================================
@@ -69,7 +101,12 @@ except Exception as e:
 # AUTH FUNCTIONS
 # ============================================================
 
-def register_user(name, email, phone, password):
+def register_user(
+    name,
+    email,
+    phone,
+    password
+):
 
     try:
 
@@ -105,6 +142,16 @@ def register_user(name, email, phone, password):
                     "Account created successfully!"
                 )
 
+                st.session_state.user = response.user
+
+                st.session_state.access_token = (
+                    response.session.access_token
+                )
+
+                st.session_state.refresh_token = (
+                    response.session.refresh_token
+                )
+
             return True
 
         return False
@@ -118,7 +165,10 @@ def register_user(name, email, phone, password):
         return False
 
 
-def login_user(email, password):
+def login_user(
+    email,
+    password
+):
 
     try:
 
@@ -132,6 +182,22 @@ def login_user(email, password):
         if response.user is not None:
 
             st.session_state.user = response.user
+
+            if response.session is not None:
+
+                st.session_state.access_token = (
+                    response.session.access_token
+                )
+
+                st.session_state.refresh_token = (
+                    response.session.refresh_token
+                )
+
+                # Immediately apply authenticated session
+                supabase.auth.set_session(
+                    response.session.access_token,
+                    response.session.refresh_token
+                )
 
             return True
 
@@ -149,11 +215,17 @@ def login_user(email, password):
 def logout_user():
 
     try:
+
         supabase.auth.sign_out()
-    except:
+
+    except Exception:
+
         pass
 
     st.session_state.user = None
+    st.session_state.access_token = None
+    st.session_state.refresh_token = None
+
     st.rerun()
 
 
@@ -168,24 +240,24 @@ def show_auth_page():
 
     .auth-box {
         max-width: 650px;
-        margin: 50px auto;
+        margin: 40px auto 35px auto;
         background: white;
         padding: 40px;
-        border-radius: 24px;
+        border-radius: 25px;
         box-shadow: 0 8px 35px rgba(30,70,120,.12);
+        text-align: center;
     }
 
     .auth-title {
-        text-align: center;
         color: #12356f;
         font-size: 40px;
         font-weight: 800;
     }
 
     .auth-subtitle {
-        text-align: center;
         color: #68778d;
-        margin-bottom: 30px;
+        font-size: 17px;
+        margin-top: 8px;
     }
 
     </style>
@@ -202,6 +274,7 @@ def show_auth_page():
 
     </div>
     """)
+
 
     login_tab, register_tab = st.tabs(
         [
@@ -269,7 +342,9 @@ def show_auth_page():
 
     with register_tab:
 
-        st.subheader("Create Your Account")
+        st.subheader(
+            "Create Your Account"
+        )
 
         register_name = st.text_input(
             "Full Name",
@@ -350,7 +425,7 @@ def show_auth_page():
     st.divider()
 
     st.caption(
-        "🔒 Authentication is handled by Supabase."
+        "🔒 Authentication is securely handled by Supabase."
     )
 
 
@@ -377,108 +452,244 @@ USER_EMAIL = current_user.email or ""
 
 
 # ============================================================
-# CSS
+# GLOBAL CSS
 # ============================================================
 
-st.markdown(
-    """
-    <style>
+st.html("""
+<style>
 
-    .stApp {
-        background: #f5f9ff;
-    }
+/* ----------------------------------------------------------
+   APP
+---------------------------------------------------------- */
 
-    .block-container {
-        max-width: 1250px;
-        padding-top: 1rem;
-    }
+.stApp {
+    background: #f5f9ff;
+}
 
-    .navbar {
-        background: white;
-        padding: 15px 22px;
-        border-radius: 16px;
-        margin-bottom: 18px;
-        box-shadow: 0 4px 18px rgba(30,70,120,.08);
-    }
+.block-container {
+    max-width: 1250px;
+    padding-top: 1rem;
+    padding-bottom: 3rem;
+}
 
-    .brand {
-        color: #12356f;
-        font-size: 27px;
-        font-weight: 800;
-    }
 
-    .subtitle {
-        color: #68778d;
-        font-size: 12px;
-    }
+/* ----------------------------------------------------------
+   FIX STREAMLIT LABEL COLORS
+---------------------------------------------------------- */
+
+.stTextInput label,
+.stNumberInput label,
+.stSelectbox label,
+.stSlider label {
+    color: #12356f !important;
+    font-weight: 600 !important;
+}
+
+.stTextInput p,
+.stNumberInput p,
+.stSelectbox p,
+.stSlider p {
+    color: #45627e !important;
+}
+
+.stCaption {
+    color: #45627e !important;
+}
+
+
+/* ----------------------------------------------------------
+   NAVBAR
+---------------------------------------------------------- */
+
+.navbar {
+    background: white;
+    padding: 20px 25px;
+    border-radius: 18px;
+    margin-bottom: 18px;
+    box-shadow: 0 4px 18px rgba(30,70,120,.08);
+}
+
+.brand {
+    color: #12356f;
+    font-size: 28px;
+    font-weight: 800;
+}
+
+.nav-subtitle {
+    color: #68778d;
+    font-size: 13px;
+    margin-top: 3px;
+}
+
+
+/* ----------------------------------------------------------
+   USER BOX
+---------------------------------------------------------- */
+
+.user-box {
+    background: white;
+    padding: 13px 18px;
+    border-radius: 14px;
+    box-shadow: 0 4px 15px rgba(30,70,120,.08);
+    color: #12356f;
+}
+
+
+/* ----------------------------------------------------------
+   HERO
+---------------------------------------------------------- */
+
+.hero {
+    background: linear-gradient(
+        135deg,
+        #dff1ff,
+        #c9e7ff,
+        #eef8ff
+    );
+
+    border-radius: 24px;
+    padding: 45px;
+    margin: 25px 0;
+
+    box-shadow: 0 8px 30px rgba(30,70,120,.08);
+}
+
+.hero-label {
+    color: #1267a8;
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    margin-bottom: 12px;
+}
+
+.hero-title {
+    color: #102e68;
+    font-size: 43px;
+    font-weight: 800;
+    line-height: 1.12;
+}
+
+.hero-text {
+    color: #375477;
+    font-size: 18px;
+    margin-top: 15px;
+}
+
+
+/* ----------------------------------------------------------
+   FEATURE CARDS
+---------------------------------------------------------- */
+
+.feature-card {
+    background: white;
+    padding: 25px;
+    border-radius: 20px;
+    min-height: 145px;
+    box-shadow: 0 5px 20px rgba(30,70,120,.08);
+    margin-bottom: 20px;
+}
+
+.feature-card h3 {
+    color: #12356f;
+    margin-bottom: 10px;
+}
+
+.feature-card p {
+    color: #68778d;
+    line-height: 1.5;
+}
+
+
+/* ----------------------------------------------------------
+   SECTION HEADER
+---------------------------------------------------------- */
+
+.section-header {
+    background: white;
+    padding: 20px 25px;
+    border-radius: 18px;
+    margin-top: 25px;
+    margin-bottom: 15px;
+    box-shadow: 0 5px 20px rgba(30,70,120,.07);
+}
+
+.section-header h2 {
+    color: #12356f;
+    margin: 0;
+    font-size: 27px;
+}
+
+
+/* ----------------------------------------------------------
+   DISCLAIMER
+---------------------------------------------------------- */
+
+.disclaimer {
+    background: #e4f2ff;
+    padding: 17px 20px;
+    border-radius: 14px;
+    color: #45627e;
+    text-align: center;
+    font-size: 13px;
+    margin: 20px 0;
+}
+
+
+/* ----------------------------------------------------------
+   HISTORY CARD
+---------------------------------------------------------- */
+
+.history-card {
+    background: white;
+    padding: 25px;
+    border-radius: 20px;
+    box-shadow: 0 5px 20px rgba(30,70,120,.08);
+}
+
+
+/* ----------------------------------------------------------
+   RESULT CARD
+---------------------------------------------------------- */
+
+.result-card {
+    background: white;
+    padding: 28px;
+    border-radius: 20px;
+    box-shadow: 0 5px 20px rgba(30,70,120,.08);
+    margin-top: 20px;
+}
+
+.result-title {
+    color: #12356f;
+    font-size: 28px;
+    font-weight: 800;
+}
+
+.patient-id {
+    color: #45627e;
+    font-size: 17px;
+    margin-top: 8px;
+}
+
+
+/* ----------------------------------------------------------
+   MOBILE
+---------------------------------------------------------- */
+
+@media (max-width: 768px) {
 
     .hero {
-        background: linear-gradient(
-            135deg,
-            #dff1ff,
-            #c9e7ff,
-            #eef8ff
-        );
-
-        border-radius: 22px;
-        padding: 42px;
-        margin-bottom: 25px;
+        padding: 28px;
     }
 
-    .hero-label {
-        color: #1267a8;
-        font-size: 13px;
-        font-weight: 700;
-        letter-spacing: 2px;
+    .hero-title {
+        font-size: 32px;
     }
 
-    .hero h1 {
-        color: #102e68;
-        font-size: 43px;
-        line-height: 1.12;
-    }
+}
 
-    .hero p {
-        color: #375477;
-        font-size: 18px;
-    }
-
-    .card {
-        background: white;
-        padding: 25px;
-        border-radius: 18px;
-        box-shadow: 0 5px 20px rgba(30,70,120,.08);
-        margin-bottom: 20px;
-    }
-
-    .history-card {
-        background: white;
-        padding: 22px;
-        border-radius: 18px;
-        box-shadow: 0 5px 20px rgba(30,70,120,.08);
-    }
-
-    .user-box {
-        background: white;
-        padding: 12px 18px;
-        border-radius: 14px;
-        box-shadow: 0 4px 15px rgba(30,70,120,.08);
-        margin-bottom: 15px;
-    }
-
-    .disclaimer {
-        background: #e4f2ff;
-        padding: 16px;
-        border-radius: 14px;
-        text-align: center;
-        color: #45627e;
-        font-size: 12px;
-    }
-
-    </style>
-    """,
-    unsafe_allow_html=True
-)
+</style>
+""")
 
 
 # ============================================================
@@ -489,10 +700,10 @@ st.html("""
 <div class="navbar">
 
     <div class="brand">
-        🫀 AI Health Risk
+        🩺 AI Health Risk
     </div>
 
-    <div class="subtitle">
+    <div class="nav-subtitle">
         Predict • Prevent • Live Better
     </div>
 
@@ -508,9 +719,11 @@ user_col, logout_col = st.columns([5, 1])
 
 with user_col:
 
+    safe_email = html.escape(USER_EMAIL)
+
     st.html(f"""
     <div class="user-box">
-        👤 <b>Logged in:</b> {USER_EMAIL}
+        👤 <b>Logged in:</b> {safe_email}
     </div>
     """)
 
@@ -530,7 +743,10 @@ with logout_col:
 
 def generate_patient_id():
 
-    return "P-" + uuid.uuid4().hex[:8].upper()
+    return (
+        "P-"
+        + uuid.uuid4().hex[:8].upper()
+    )
 
 
 def save_patient(
@@ -553,11 +769,15 @@ def save_patient(
             "email": email,
 
             "user_id": USER_ID
+
         }
 
-        supabase.table(
-            "patients"
-        ).insert(data).execute()
+        response = (
+            supabase
+            .table("patients")
+            .insert(data)
+            .execute()
+        )
 
         return True
 
@@ -614,11 +834,15 @@ def save_assessment(
             "risk_category": risk_category,
 
             "user_id": USER_ID
+
         }
 
-        supabase.table(
-            "assessments"
-        ).insert(data).execute()
+        response = (
+            supabase
+            .table("assessments")
+            .insert(data)
+            .execute()
+        )
 
         return True
 
@@ -644,10 +868,14 @@ def get_patients(search=""):
 
         if search.strip():
 
+            search_value = (
+                search.strip()
+            )
+
             query = query.or_(
-                f"patient_id.ilike.%{search}%,"
-                f"patient_name.ilike.%{search}%,"
-                f"phone.ilike.%{search}%"
+                f"patient_id.ilike.%{search_value}%,"
+                f"patient_name.ilike.%{search_value}%,"
+                f"phone.ilike.%{search_value}%"
             )
 
         response = query.execute()
@@ -750,9 +978,10 @@ page = st.radio(
 
 if page == "🏠 Home":
 
-    # --------------------------------------------------------
+
+    # ========================================================
     # HERO
-    # --------------------------------------------------------
+    # ========================================================
 
     st.html("""
     <div class="hero">
@@ -761,29 +990,98 @@ if page == "🏠 Home":
             YOUR HEALTH, OUR PRIORITY
         </div>
 
-        <h1>
+        <div class="hero-title">
             AI-Based Health<br>
             Risk Prediction System
-        </h1>
+        </div>
 
-        <p>
+        <div class="hero-text">
             Machine Learning Based Health Risk
             Assessment & Awareness Platform
-        </p>
+        </div>
 
     </div>
     """)
 
 
-    # --------------------------------------------------------
-    # DISCLAIMER
-    # --------------------------------------------------------
+    # ========================================================
+    # FEATURE CARDS
+    # ========================================================
 
-    st.info(
-        "⚠️ This system is for academic, educational "
-        "and health-awareness purposes only. "
-        "It is not a medical diagnosis."
-    )
+    f1, f2, f3 = st.columns(3)
+
+    with f1:
+
+        st.html("""
+        <div class="feature-card">
+
+            <h3>
+                🔎 Early Risk Detection
+            </h3>
+
+            <p>
+                Identify potential health risks
+                using machine-learning based
+                assessment.
+            </p>
+
+        </div>
+        """)
+
+
+    with f2:
+
+        st.html("""
+        <div class="feature-card">
+
+            <h3>
+                📊 Data Driven Insights
+            </h3>
+
+            <p>
+                Analyse health and lifestyle
+                information to understand
+                possible risk levels.
+            </p>
+
+        </div>
+        """)
+
+
+    with f3:
+
+        st.html("""
+        <div class="feature-card">
+
+            <h3>
+                🌱 A Healthier Tomorrow
+            </h3>
+
+            <p>
+                Use awareness and data-driven
+                insights to encourage healthier
+                lifestyle choices.
+            </p>
+
+        </div>
+        """)
+
+
+    # ========================================================
+    # DISCLAIMER
+    # ========================================================
+
+    st.html("""
+    <div class="disclaimer">
+
+        ⚠️ This system is for academic,
+        educational and health-awareness
+        purposes only.
+
+        It is not a medical diagnosis.
+
+    </div>
+    """)
 
 
     # ========================================================
@@ -791,14 +1089,15 @@ if page == "🏠 Home":
     # ========================================================
 
     st.html("""
-    <div class="card">
+    <div class="section-header">
 
-        <h2 style="color:#12356f;">
+        <h2>
             👤 Patient Information
         </h2>
 
     </div>
     """)
+
 
     col1, col2 = st.columns(2)
 
@@ -816,15 +1115,17 @@ if page == "🏠 Home":
             placeholder="Enter phone number"
         )
 
+
     email = st.text_input(
         "Email",
         value=USER_EMAIL,
         disabled=True
     )
 
+
     st.caption(
-        "Patient ID will be automatically generated "
-        "after prediction."
+        "ℹ️ Patient ID will be automatically "
+        "generated after prediction."
     )
 
 
@@ -833,16 +1134,18 @@ if page == "🏠 Home":
     # ========================================================
 
     st.html("""
-    <div class="card">
+    <div class="section-header">
 
-        <h2 style="color:#12356f;">
+        <h2>
             🩺 Health & Lifestyle Information
         </h2>
 
     </div>
     """)
 
+
     c1, c2, c3 = st.columns(3)
+
 
     with c1:
 
@@ -853,6 +1156,7 @@ if page == "🏠 Home":
             value=30
         )
 
+
         gender = st.selectbox(
             "Gender",
             [
@@ -861,6 +1165,7 @@ if page == "🏠 Home":
                 "Other"
             ]
         )
+
 
         bmi = st.number_input(
             "BMI (kg/m²)",
@@ -871,6 +1176,7 @@ if page == "🏠 Home":
             format="%.2f"
         )
 
+
     with c2:
 
         blood_pressure = st.number_input(
@@ -880,6 +1186,7 @@ if page == "🏠 Home":
             value=120
         )
 
+
         glucose = st.number_input(
             "Glucose Level (mg/dL)",
             min_value=50,
@@ -887,12 +1194,14 @@ if page == "🏠 Home":
             value=100
         )
 
+
         cholesterol = st.number_input(
             "Cholesterol Level (mg/dL)",
             min_value=80,
             max_value=400,
             value=180
         )
+
 
     with c3:
 
@@ -903,6 +1212,7 @@ if page == "🏠 Home":
             value=3
         )
 
+
         smoking = st.selectbox(
             "Smoking Habit",
             [
@@ -910,6 +1220,7 @@ if page == "🏠 Home":
                 "Yes"
             ]
         )
+
 
         family_history = st.selectbox(
             "Family History of Diabetes",
@@ -921,12 +1232,15 @@ if page == "🏠 Home":
 
 
     # ========================================================
-    # PREDICT
+    # PREDICT BUTTON
     # ========================================================
 
     st.write("")
 
-    _, middle, _ = st.columns([1, 2, 1])
+    _, middle, _ = st.columns(
+        [1, 2, 1]
+    )
+
 
     with middle:
 
@@ -936,7 +1250,16 @@ if page == "🏠 Home":
         )
 
 
+    # ========================================================
+    # PREDICTION
+    # ========================================================
+
     if predict_button:
+
+
+        # ----------------------------------------------------
+        # VALIDATION
+        # ----------------------------------------------------
 
         if not patient_name.strip():
 
@@ -947,26 +1270,34 @@ if page == "🏠 Home":
             st.stop()
 
 
-        # ====================================================
-        # AUTOMATIC PATIENT ID
-        # ====================================================
+        # ----------------------------------------------------
+        # PATIENT ID
+        # ----------------------------------------------------
 
         patient_id = generate_patient_id()
 
 
-        # ====================================================
-        # MODEL INPUT
-        # ====================================================
+        # ----------------------------------------------------
+        # CATEGORICAL VALUES
+        # ----------------------------------------------------
 
         smoking_value = (
-            1 if smoking == "Yes"
+            1
+            if smoking == "Yes"
             else 0
         )
 
+
         family_history_value = (
-            1 if family_history == "Yes"
+            1
+            if family_history == "Yes"
             else 0
         )
+
+
+        # ----------------------------------------------------
+        # MODEL INPUT
+        # ----------------------------------------------------
 
         input_data = pd.DataFrame(
             [{
@@ -991,23 +1322,30 @@ if page == "🏠 Home":
 
                 "FamilyHistory":
                     family_history_value
+
             }]
         )
 
 
-        # ====================================================
-        # PREDICTION
-        # ====================================================
+        # ----------------------------------------------------
+        # MODEL PREDICTION
+        # ----------------------------------------------------
 
         try:
 
-            input_scaled = scaler.transform(
-                input_data
+            input_scaled = (
+                scaler.transform(
+                    input_data
+                )
             )
 
-            prediction = model.predict(
-                input_scaled
-            )[0]
+
+            prediction = (
+                model.predict(
+                    input_scaled
+                )[0]
+            )
+
 
             if hasattr(
                 model,
@@ -1027,16 +1365,16 @@ if page == "🏠 Home":
                     prediction
                 )
 
+
             percentage = (
                 probability * 100
             )
 
+
         except Exception as e:
 
             st.error(
-                "Prediction failed. "
-                "Please check model.pkl "
-                "and scaler.pkl."
+                "Prediction failed."
             )
 
             st.exception(e)
@@ -1044,9 +1382,9 @@ if page == "🏠 Home":
             st.stop()
 
 
-        # ====================================================
+        # ----------------------------------------------------
         # RISK CATEGORY
-        # ====================================================
+        # ----------------------------------------------------
 
         if percentage < 10:
 
@@ -1057,6 +1395,7 @@ if page == "🏠 Home":
                 "is relatively low."
             )
 
+
         elif percentage < 20:
 
             category = "MEDIUM RISK"
@@ -1066,6 +1405,7 @@ if page == "🏠 Home":
                 "is moderate. Maintaining "
                 "a healthy lifestyle is recommended."
             )
+
 
         else:
 
@@ -1089,6 +1429,7 @@ if page == "🏠 Home":
             phone.strip(),
             USER_EMAIL
         )
+
 
         if not patient_saved:
 
@@ -1121,11 +1462,19 @@ if page == "🏠 Home":
 
         st.divider()
 
-        st.header(
-            "📊 Prediction Result"
-        )
+        st.html("""
+        <div class="section-header">
+
+            <h2>
+                📊 Prediction Result
+            </h2>
+
+        </div>
+        """)
+
 
         r1, r2, r3 = st.columns(3)
+
 
         with r1:
 
@@ -1134,12 +1483,14 @@ if page == "🏠 Home":
                 f"{percentage:.2f}%"
             )
 
+
         with r2:
 
             st.metric(
                 "Risk Category",
                 category
             )
+
 
         with r3:
 
@@ -1149,11 +1500,16 @@ if page == "🏠 Home":
             )
 
 
+        # ----------------------------------------------------
+        # RESULT STATUS
+        # ----------------------------------------------------
+
         if category == "LOW RISK":
 
             st.success(
                 "🟢 LOW RISK"
             )
+
 
         elif category == "MEDIUM RISK":
 
@@ -1161,12 +1517,17 @@ if page == "🏠 Home":
                 "🟡 MEDIUM RISK"
             )
 
+
         else:
 
             st.error(
                 "🔴 HIGH RISK"
             )
 
+
+        # ----------------------------------------------------
+        # PROGRESS
+        # ----------------------------------------------------
 
         st.progress(
             min(
@@ -1178,14 +1539,20 @@ if page == "🏠 Home":
             )
         )
 
+
         st.write(
             f"**Assessment:** {message}"
         )
 
+
+        # ----------------------------------------------------
+        # SAVE STATUS
+        # ----------------------------------------------------
+
         if assessment_saved:
 
             st.success(
-                "✅ Assessment saved successfully."
+                "✅ Assessment saved successfully!"
             )
 
             st.info(
@@ -1199,15 +1566,30 @@ if page == "🏠 Home":
 
         st.divider()
 
-        st.header(
-            "💡 Health Insights"
-        )
+        st.html("""
+        <div class="section-header">
+
+            <h2>
+                💡 Health Insights
+            </h2>
+
+        </div>
+        """)
+
 
         i1, i2, i3 = st.columns(3)
 
+
+        # ----------------------------------------------------
+        # BMI
+        # ----------------------------------------------------
+
         with i1:
 
-            st.subheader("⚖️ BMI")
+            st.subheader(
+                "⚖️ BMI"
+            )
+
 
             if bmi < 18.5:
 
@@ -1216,6 +1598,7 @@ if page == "🏠 Home":
                     "used healthy range."
                 )
 
+
             elif bmi < 25:
 
                 st.success(
@@ -1223,11 +1606,13 @@ if page == "🏠 Home":
                     "used healthy range."
                 )
 
+
             elif bmi < 30:
 
                 st.warning(
                     "BMI is in the overweight range."
                 )
+
 
             else:
 
@@ -1235,11 +1620,17 @@ if page == "🏠 Home":
                     "BMI is in the obesity range."
                 )
 
+
+        # ----------------------------------------------------
+        # BLOOD PRESSURE
+        # ----------------------------------------------------
+
         with i2:
 
             st.subheader(
                 "🩸 Blood Pressure"
             )
+
 
             if blood_pressure < 120:
 
@@ -1248,12 +1639,14 @@ if page == "🏠 Home":
                     "is below 120 mmHg."
                 )
 
+
             elif blood_pressure < 130:
 
                 st.warning(
                     "Systolic blood pressure "
                     "is elevated."
                 )
+
 
             else:
 
@@ -1263,11 +1656,17 @@ if page == "🏠 Home":
                     "professional evaluation."
                 )
 
+
+        # ----------------------------------------------------
+        # GLUCOSE
+        # ----------------------------------------------------
+
         with i3:
 
             st.subheader(
                 "🍬 Glucose"
             )
+
 
             if glucose < 100:
 
@@ -1276,11 +1675,13 @@ if page == "🏠 Home":
                     "100 mg/dL."
                 )
 
+
             elif glucose < 126:
 
                 st.warning(
                     "Glucose level is elevated."
                 )
+
 
             else:
 
@@ -1296,20 +1697,37 @@ if page == "🏠 Home":
 
 else:
 
-    st.header(
-        "📋 Patient History"
-    )
+
+    st.html("""
+    <div class="section-header">
+
+        <h2>
+            📋 Patient History
+        </h2>
+
+    </div>
+    """)
+
 
     st.write(
         "View your previous health risk assessments."
     )
+
+
+    # ========================================================
+    # SEARCH
+    # ========================================================
 
     search = st.text_input(
         "🔎 Search Patient",
         placeholder="Patient ID, name or phone"
     )
 
-    patients = get_patients(search)
+
+    patients = get_patients(
+        search
+    )
+
 
     if patients.empty:
 
@@ -1317,28 +1735,46 @@ else:
             "No patient records found."
         )
 
+
     else:
+
+
+        # ----------------------------------------------------
+        # PATIENT SELECT
+        # ----------------------------------------------------
 
         patient_options = (
             patients["patient_id"]
             .astype(str)
+
             + " — "
+
             + patients["patient_name"]
             .astype(str)
         ).tolist()
+
 
         selected = st.selectbox(
             "Select Patient",
             patient_options
         )
 
-        selected_id = selected.split(
-            " — "
-        )[0]
+
+        selected_id = (
+            selected.split(
+                " — "
+            )[0]
+        )
+
+
+        # ----------------------------------------------------
+        # PATIENT DATA
+        # ----------------------------------------------------
 
         patient_data = get_patient(
             selected_id
         )
+
 
         history = get_history(
             selected_id
@@ -1353,11 +1789,15 @@ else:
 
             person = patient_data[0]
 
+
             st.html("""
             <div class="history-card">
+            </div>
             """)
 
+
             h1, h2, h3 = st.columns(3)
+
 
             with h1:
 
@@ -1369,6 +1809,7 @@ else:
                     )
                 )
 
+
             with h2:
 
                 st.metric(
@@ -1378,6 +1819,7 @@ else:
                         "-"
                     )
                 )
+
 
             with h3:
 
@@ -1389,39 +1831,52 @@ else:
                     )
                 )
 
-            st.html("""
-            </div>
-            """)
-
 
         # ====================================================
-        # HISTORY
+        # ASSESSMENT HISTORY
         # ====================================================
 
         if not history.empty:
 
+
             st.divider()
+
+
+            # ------------------------------------------------
+            # GRAPH
+            # ------------------------------------------------
 
             st.subheader(
                 "📈 Risk History"
             )
 
+
             chart_data = history.copy()
 
-            chart_data = chart_data.sort_values(
-                "Date"
+
+            chart_data = (
+                chart_data
+                .sort_values("Date")
             )
+
 
             st.line_chart(
                 chart_data.set_index(
                     "Date"
-                )["risk_probability"]
+                )[
+                    "risk_probability"
+                ]
             )
 
+
+            # ------------------------------------------------
+            # TABLE
+            # ------------------------------------------------
 
             st.subheader(
                 "🗂️ Previous Assessments"
             )
+
 
             display_history = history[
                 [
@@ -1431,14 +1886,16 @@ else:
                 ]
             ].copy()
 
-            display_history[
-                "Risk"
-            ] = display_history[
-                "risk_probability"
-            ].apply(
-                lambda x:
-                f"{float(x):.2f}%"
+
+            display_history["Risk"] = (
+                display_history[
+                    "risk_probability"
+                ].apply(
+                    lambda x:
+                    f"{float(x):.2f}%"
+                )
             )
+
 
             display_history = (
                 display_history[
@@ -1456,6 +1913,7 @@ else:
                 )
             )
 
+
             st.dataframe(
                 display_history,
                 use_container_width=True,
@@ -1471,17 +1929,21 @@ else:
                 "🔍 Assessment Details"
             )
 
+
             selected_date = st.selectbox(
                 "Select an assessment",
                 history["Date"].tolist()
             )
+
 
             detail = history[
                 history["Date"]
                 == selected_date
             ].iloc[0]
 
+
             d1, d2, d3 = st.columns(3)
+
 
             with d1:
 
@@ -1500,6 +1962,7 @@ else:
                     f"{detail['glucose']} mg/dL"
                 )
 
+
             with d2:
 
                 st.write(
@@ -1516,6 +1979,7 @@ else:
                     f"**Smoking:** "
                     f"{detail['smoking']}"
                 )
+
 
             with d3:
 
@@ -1534,6 +1998,7 @@ else:
                     f"{detail['risk_category']}"
                 )
 
+
         else:
 
             st.info(
@@ -1542,7 +2007,7 @@ else:
 
 
 # ============================================================
-# DISCLAIMER
+# FINAL DISCLAIMER
 # ============================================================
 
 st.divider()
