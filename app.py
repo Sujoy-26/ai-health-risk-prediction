@@ -484,6 +484,58 @@ st.html("""
     color: #12356f !important;
     font-weight: 600 !important;
 }
+/* FORCE TEXT TO DARK COLOR */
+
+.stRadio label,
+.stRadio p,
+.stRadio div[role="radiogroup"] label {
+    color: #12356f !important;
+    font-weight: 600 !important;
+}
+
+.stRadio div[role="radiogroup"] label span {
+    color: #12356f !important;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    color: #12356f !important;
+}
+
+.stMarkdown h1,
+.stMarkdown h2,
+.stMarkdown h3,
+.stMarkdown h4,
+.stMarkdown h5,
+.stMarkdown h6 {
+    color: #12356f !important;
+}
+
+.stMarkdown p,
+.stMarkdown li,
+.stMarkdown span {
+    color: #45627e !important;
+}
+
+.stSelectbox,
+.stTextInput,
+.stNumberInput,
+.stSlider {
+    color: #12356f !important;
+}
+
+div[data-testid="stRadio"] label {
+    color: #12356f !important;
+}
+
+.stCaption,
+div[data-testid="stCaptionContainer"] {
+    color: #45627e !important;
+}
 
 .stTextInput p,
 .stNumberInput p,
