@@ -2,8 +2,8 @@ import streamlit as st
 import pandas as pd
 import pickle
 import uuid
-from datetime import datetime
 from supabase import create_client
+
 
 # ============================================================
 # PAGE CONFIG
@@ -14,6 +14,7 @@ st.set_page_config(
     page_icon="🩺",
     layout="wide"
 )
+
 
 # ============================================================
 # SUPABASE CONNECTION
@@ -153,7 +154,6 @@ def logout_user():
         pass
 
     st.session_state.user = None
-
     st.rerun()
 
 
@@ -164,40 +164,44 @@ def logout_user():
 def show_auth_page():
 
     st.html("""
-<style>
-.auth-box {
-    max-width: 650px;
-    margin: 50px auto;
-    background: white;
-    padding: 40px;
-    border-radius: 24px;
-    box-shadow: 0 8px 35px rgba(30,70,120,.12);
-}
+    <style>
 
-.auth-title {
-    text-align: center;
-    color: #12356f;
-    font-size: 40px;
-    font-weight: 800;
-}
+    .auth-box {
+        max-width: 650px;
+        margin: 50px auto;
+        background: white;
+        padding: 40px;
+        border-radius: 24px;
+        box-shadow: 0 8px 35px rgba(30,70,120,.12);
+    }
 
-.auth-subtitle {
-    text-align: center;
-    color: #68778d;
-    margin-bottom: 30px;
-}
-</style>
+    .auth-title {
+        text-align: center;
+        color: #12356f;
+        font-size: 40px;
+        font-weight: 800;
+    }
 
-<div class="auth-box">
-    <div class="auth-title">
-        🩺 AI Health Risk
+    .auth-subtitle {
+        text-align: center;
+        color: #68778d;
+        margin-bottom: 30px;
+    }
+
+    </style>
+
+    <div class="auth-box">
+
+        <div class="auth-title">
+            🩺 AI Health Risk
+        </div>
+
+        <div class="auth-subtitle">
+            Predict • Prevent • Live Better
+        </div>
+
     </div>
-
-    <div class="auth-subtitle">
-        Predict • Prevent • Live Better
-    </div>
-</div>
-""")
+    """)
 
     login_tab, register_tab = st.tabs(
         [
@@ -205,6 +209,7 @@ def show_auth_page():
             "📝 Create Account"
         ]
     )
+
 
     # ========================================================
     # LOGIN
@@ -480,42 +485,34 @@ st.markdown(
 # NAVBAR
 # ============================================================
 
-st.markdown(
-    """
-    <div class="navbar">
+st.html("""
+<div class="navbar">
 
-        <div class="brand">
-            🫀 AI Health Risk
-        </div>
-
-        <div class="subtitle">
-            Predict • Prevent • Live Better
-        </div>
-
+    <div class="brand">
+        🫀 AI Health Risk
     </div>
-    """,
-    unsafe_allow_html=True
-)
+
+    <div class="subtitle">
+        Predict • Prevent • Live Better
+    </div>
+
+</div>
+""")
 
 
 # ============================================================
 # USER BAR
 # ============================================================
 
-user_col, logout_col = st.columns(
-    [5, 1]
-)
+user_col, logout_col = st.columns([5, 1])
 
 with user_col:
 
-    st.markdown(
-        f"""
-        <div class="user-box">
-            👤 <b>Logged in:</b> {USER_EMAIL}
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+    st.html(f"""
+    <div class="user-box">
+        👤 <b>Logged in:</b> {USER_EMAIL}
+    </div>
+    """)
 
 with logout_col:
 
@@ -533,10 +530,7 @@ with logout_col:
 
 def generate_patient_id():
 
-    return (
-        "P-"
-        + uuid.uuid4().hex[:8].upper()
-    )
+    return "P-" + uuid.uuid4().hex[:8].upper()
 
 
 def save_patient(
@@ -561,12 +555,9 @@ def save_patient(
             "user_id": USER_ID
         }
 
-        response = (
-            supabase
-            .table("patients")
-            .insert(data)
-            .execute()
-        )
+        supabase.table(
+            "patients"
+        ).insert(data).execute()
 
         return True
 
@@ -625,12 +616,9 @@ def save_assessment(
             "user_id": USER_ID
         }
 
-        (
-            supabase
-            .table("assessments")
-            .insert(data)
-            .execute()
-        )
+        supabase.table(
+            "assessments"
+        ).insert(data).execute()
 
         return True
 
@@ -762,29 +750,34 @@ page = st.radio(
 
 if page == "🏠 Home":
 
-    st.markdown(
-        """
-        <div class="hero">
+    # --------------------------------------------------------
+    # HERO
+    # --------------------------------------------------------
 
-            <div class="hero-label">
-                YOUR HEALTH, OUR PRIORITY
-            </div>
+    st.html("""
+    <div class="hero">
 
-            <h1>
-                AI-Based Health<br>
-                Risk Prediction System
-            </h1>
-
-            <p>
-                Machine Learning Based Health Risk
-                Assessment & Awareness Platform
-            </p>
-
+        <div class="hero-label">
+            YOUR HEALTH, OUR PRIORITY
         </div>
-        """,
-        unsafe_allow_html=True
-    )
 
+        <h1>
+            AI-Based Health<br>
+            Risk Prediction System
+        </h1>
+
+        <p>
+            Machine Learning Based Health Risk
+            Assessment & Awareness Platform
+        </p>
+
+    </div>
+    """)
+
+
+    # --------------------------------------------------------
+    # DISCLAIMER
+    # --------------------------------------------------------
 
     st.info(
         "⚠️ This system is for academic, educational "
@@ -797,12 +790,15 @@ if page == "🏠 Home":
     # PATIENT INFORMATION
     # ========================================================
 
-    st.markdown(
-        '<div class="card">',
-        unsafe_allow_html=True
-    )
+    st.html("""
+    <div class="card">
 
-    st.header("👤 Patient Information")
+        <h2 style="color:#12356f;">
+            👤 Patient Information
+        </h2>
+
+    </div>
+    """)
 
     col1, col2 = st.columns(2)
 
@@ -831,24 +827,20 @@ if page == "🏠 Home":
         "after prediction."
     )
 
-    st.markdown(
-        '</div>',
-        unsafe_allow_html=True
-    )
-
 
     # ========================================================
     # HEALTH INFORMATION
     # ========================================================
 
-    st.markdown(
-        '<div class="card">',
-        unsafe_allow_html=True
-    )
+    st.html("""
+    <div class="card">
 
-    st.header(
-        "🩺 Health & Lifestyle Information"
-    )
+        <h2 style="color:#12356f;">
+            🩺 Health & Lifestyle Information
+        </h2>
+
+    </div>
+    """)
 
     c1, c2, c3 = st.columns(3)
 
@@ -927,19 +919,14 @@ if page == "🏠 Home":
             ]
         )
 
-    st.markdown(
-        '</div>',
-        unsafe_allow_html=True
-    )
-
 
     # ========================================================
     # PREDICT
     # ========================================================
 
-    _, middle, _ = st.columns(
-        [1, 2, 1]
-    )
+    st.write("")
+
+    _, middle, _ = st.columns([1, 2, 1])
 
     with middle:
 
@@ -968,7 +955,7 @@ if page == "🏠 Home":
 
 
         # ====================================================
-        # PREPARE MODEL INPUT
+        # MODEL INPUT
         # ====================================================
 
         smoking_value = (
@@ -980,7 +967,6 @@ if page == "🏠 Home":
             1 if family_history == "Yes"
             else 0
         )
-
 
         input_data = pd.DataFrame(
             [{
@@ -1023,7 +1009,6 @@ if page == "🏠 Home":
                 input_scaled
             )[0]
 
-
             if hasattr(
                 model,
                 "predict_proba"
@@ -1042,11 +1027,9 @@ if page == "🏠 Home":
                     prediction
                 )
 
-
             percentage = (
                 probability * 100
             )
-
 
         except Exception as e:
 
@@ -1101,16 +1084,11 @@ if page == "🏠 Home":
         # ====================================================
 
         patient_saved = save_patient(
-
             patient_id,
-
             patient_name.strip(),
-
             phone.strip(),
-
             USER_EMAIL
         )
-
 
         if not patient_saved:
 
@@ -1122,29 +1100,17 @@ if page == "🏠 Home":
         # ====================================================
 
         assessment_saved = save_assessment(
-
             patient_id,
-
             age,
-
             gender,
-
             bmi,
-
             blood_pressure,
-
             glucose,
-
             cholesterol,
-
             physical_activity,
-
             smoking,
-
             family_history,
-
             percentage,
-
             category
         )
 
@@ -1159,9 +1125,7 @@ if page == "🏠 Home":
             "📊 Prediction Result"
         )
 
-
         r1, r2, r3 = st.columns(3)
-
 
         with r1:
 
@@ -1170,14 +1134,12 @@ if page == "🏠 Home":
                 f"{percentage:.2f}%"
             )
 
-
         with r2:
 
             st.metric(
                 "Risk Category",
                 category
             )
-
 
         with r3:
 
@@ -1216,16 +1178,14 @@ if page == "🏠 Home":
             )
         )
 
-
         st.write(
             f"**Assessment:** {message}"
         )
 
-
         if assessment_saved:
 
             st.success(
-                f"✅ Assessment saved successfully."
+                "✅ Assessment saved successfully."
             )
 
             st.info(
@@ -1243,9 +1203,7 @@ if page == "🏠 Home":
             "💡 Health Insights"
         )
 
-
         i1, i2, i3 = st.columns(3)
-
 
         with i1:
 
@@ -1277,7 +1235,6 @@ if page == "🏠 Home":
                     "BMI is in the obesity range."
                 )
 
-
         with i2:
 
             st.subheader(
@@ -1305,7 +1262,6 @@ if page == "🏠 Home":
                     "is elevated and may require "
                     "professional evaluation."
                 )
-
 
         with i3:
 
@@ -1348,17 +1304,12 @@ else:
         "View your previous health risk assessments."
     )
 
-
     search = st.text_input(
         "🔎 Search Patient",
         placeholder="Patient ID, name or phone"
     )
 
-
-    patients = get_patients(
-        search
-    )
-
+    patients = get_patients(search)
 
     if patients.empty:
 
@@ -1369,33 +1320,25 @@ else:
     else:
 
         patient_options = (
-
             patients["patient_id"]
             .astype(str)
-
             + " — "
-
             + patients["patient_name"]
             .astype(str)
-
         ).tolist()
-
 
         selected = st.selectbox(
             "Select Patient",
             patient_options
         )
 
-
         selected_id = selected.split(
             " — "
         )[0]
 
-
         patient_data = get_patient(
             selected_id
         )
-
 
         history = get_history(
             selected_id
@@ -1410,15 +1353,11 @@ else:
 
             person = patient_data[0]
 
-
-            st.markdown(
-                '<div class="history-card">',
-                unsafe_allow_html=True
-            )
-
+            st.html("""
+            <div class="history-card">
+            """)
 
             h1, h2, h3 = st.columns(3)
-
 
             with h1:
 
@@ -1430,7 +1369,6 @@ else:
                     )
                 )
 
-
             with h2:
 
                 st.metric(
@@ -1440,7 +1378,6 @@ else:
                         "-"
                     )
                 )
-
 
             with h3:
 
@@ -1452,11 +1389,9 @@ else:
                     )
                 )
 
-
-            st.markdown(
-                '</div>',
-                unsafe_allow_html=True
-            )
+            st.html("""
+            </div>
+            """)
 
 
         # ====================================================
@@ -1471,13 +1406,11 @@ else:
                 "📈 Risk History"
             )
 
-
             chart_data = history.copy()
 
             chart_data = chart_data.sort_values(
                 "Date"
             )
-
 
             st.line_chart(
                 chart_data.set_index(
@@ -1490,7 +1423,6 @@ else:
                 "🗂️ Previous Assessments"
             )
 
-
             display_history = history[
                 [
                     "Date",
@@ -1498,7 +1430,6 @@ else:
                     "risk_category"
                 ]
             ].copy()
-
 
             display_history[
                 "Risk"
@@ -1508,7 +1439,6 @@ else:
                 lambda x:
                 f"{float(x):.2f}%"
             )
-
 
             display_history = (
                 display_history[
@@ -1526,7 +1456,6 @@ else:
                 )
             )
 
-
             st.dataframe(
                 display_history,
                 use_container_width=True,
@@ -1542,21 +1471,17 @@ else:
                 "🔍 Assessment Details"
             )
 
-
             selected_date = st.selectbox(
                 "Select an assessment",
                 history["Date"].tolist()
             )
-
 
             detail = history[
                 history["Date"]
                 == selected_date
             ].iloc[0]
 
-
             d1, d2, d3 = st.columns(3)
-
 
             with d1:
 
@@ -1575,7 +1500,6 @@ else:
                     f"{detail['glucose']} mg/dL"
                 )
 
-
             with d2:
 
                 st.write(
@@ -1592,7 +1516,6 @@ else:
                     f"**Smoking:** "
                     f"{detail['smoking']}"
                 )
-
 
             with d3:
 
@@ -1611,7 +1534,6 @@ else:
                     f"{detail['risk_category']}"
                 )
 
-
         else:
 
             st.info(
@@ -1625,9 +1547,8 @@ else:
 
 st.divider()
 
-st.markdown(
-    """
-    <div class="disclaimer">
+st.html("""
+<div class="disclaimer">
 
     ℹ️ <b>Disclaimer:</b>
 
@@ -1638,7 +1559,5 @@ st.markdown(
     It is not a substitute for professional
     medical advice, diagnosis, or treatment.
 
-    </div>
-    """,
-    unsafe_allow_html=True
-)
+</div>
+""")
