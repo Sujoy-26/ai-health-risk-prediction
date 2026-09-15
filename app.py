@@ -163,37 +163,6 @@ def logout_user():
 
 def show_auth_page():
 
-    st.markdown(
-        """
-        <style>
-
-        .auth-box {
-            max-width: 650px;
-            margin: 50px auto;
-            background: white;
-            padding: 40px;
-            border-radius: 24px;
-            box-shadow: 0 8px 35px rgba(30,70,120,.12);
-        }
-
-        .auth-title {
-            text-align: center;
-            color: #12356f;
-            font-size: 40px;
-            font-weight: 800;
-        }
-
-        .auth-subtitle {
-            text-align: center;
-            color: #68778d;
-            margin-bottom: 30px;
-        }
-
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
-
     st.html("""
 <style>
 .auth-box {
