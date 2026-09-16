@@ -2305,24 +2305,25 @@ elif page == "👨‍⚕️ Find Doctor":
 
                             st.divider()
 
-       # ====================================================
+        except Exception as e:
+        st.error(f"❌ Doctor loading failed: {e}")
+        doctors = []
+
+    # ====================================================
     # BOOK APPOINTMENT
     # ====================================================
 
     st.subheader("📅 Book Appointment")
 
-    # Doctor list
     doctor_options = {
         doctor.get("doctor_name", "Unknown"): doctor.get("id")
         for doctor in doctors
     }
 
     if not doctor_options:
-
         st.warning("No doctors available.")
 
     else:
-
         selected_doctor_name = st.selectbox(
             "Select Doctor",
             list(doctor_options.keys())
@@ -2361,46 +2362,22 @@ elif page == "👨‍⚕️ Find Doctor":
         ):
 
             if not patient_name.strip():
-
-                st.warning(
-                    "Please enter patient name."
-                )
+                st.warning("Please enter patient name.")
 
             elif not patient_phone.strip():
-
-                st.warning(
-                    "Please enter patient phone."
-                )
+                st.warning("Please enter patient phone.")
 
             else:
-
                 try:
-
                     appointment_data = {
-
                         "user_id": USER_ID,
-
-                        "patient_name":
-                            patient_name.strip(),
-
-                        "patient_phone":
-                            patient_phone.strip(),
-
-                        "doctor_id":
-                            selected_doctor_id,
-
-                        "appointment_date":
-                            str(appointment_date),
-
-                        "appointment_time":
-                            str(appointment_time),
-
-                        "consultation_type":
-                            consultation_type,
-
-                        "status":
-                            "Pending"
-
+                        "patient_name": patient_name.strip(),
+                        "patient_phone": patient_phone.strip(),
+                        "doctor_id": selected_doctor_id,
+                        "appointment_date": str(appointment_date),
+                        "appointment_time": str(appointment_time),
+                        "consultation_type": consultation_type,
+                        "status": "Pending"
                     }
 
                     result = (
@@ -2415,45 +2392,29 @@ elif page == "👨‍⚕️ Find Doctor":
                     )
 
                     st.write(
-                        f"**Doctor:** "
-                        f"{selected_doctor_name}"
+                        f"**Doctor:** {selected_doctor_name}"
                     )
 
                     st.write(
-                        f"**Date:** "
-                        f"{appointment_date}"
+                        f"**Date:** {appointment_date}"
                     )
 
                     st.write(
-                        f"**Time:** "
-                        f"{appointment_time}"
+                        f"**Time:** {appointment_time}"
                     )
 
                     st.write(
-                        f"**Consultation:** "
-                        f"{consultation_type}"
+                        f"**Consultation:** {consultation_type}"
                     )
 
                     st.info(
-                        "Your appointment is saved "
-                        "with Pending status."
+                        "Your appointment is saved with Pending status."
                     )
 
                 except Exception as e:
-
                     st.error(
                         f"❌ Booking failed: {e}"
                     )
-
-
-    # OUTER TRY EXCEPT
-    except Exception as e:
-
-        st.error(
-            f"Error loading doctors: {e}"
-        )
-
-        doctors = []
 
 
 # ============================================================
