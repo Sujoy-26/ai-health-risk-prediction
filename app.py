@@ -2581,6 +2581,99 @@ elif page == "💊 Medicines":
                             f"**Manufacturer:** "
                             f"{medicine.get('manufacturer', '-')}"
                         )
+                        
+                        st.divider()
+
+                        st.subheader(
+                            "🔄 Similar / Alternative Medicines"
+                        )
+
+                        try:
+
+                            alternative_response = (
+                                supabase
+                                .table("medicine_alternatives")
+                                .select("*")
+                                .eq(
+                                    "medicine_id",
+                                    medicine["id"]
+                                )
+                                .execute()
+                            )
+
+                            alternatives = (
+                                alternative_response.data or []
+                            )
+
+                            if not alternatives:
+
+                                st.info(
+                                    "No similar medicines found."
+                                )
+
+                            else:
+
+                                for alternative in alternatives:
+
+                                    alternative_id = (
+                                        alternative[
+                                            "alternative_medicine_id"
+                                        ]
+                                    )
+
+                                    alternative_response = (
+                                        supabase
+                                        .table("medicines")
+                                        .select("*")
+                                        .eq(
+                                            "id",
+                                            alternative_id
+                                        )
+                                        .execute()
+                                    )
+
+                                    alternative_data = (
+                                        alternative_response.data or []
+                                    )
+
+                                    for alt in alternative_data:
+
+                                        st.write(
+                                            f"💊 **{alt.get('medicine_name', '-')}"
+                                            "**"
+                                        )
+
+                                        st.write(
+                                            f"Generic Name: "
+                                            f"{alt.get('generic_name', '-')}"
+                                        )
+
+                                        st.write(
+                                            f"Strength: "
+                                            f"{alt.get('strength', '-')}"
+                                        )
+
+                                        st.write(
+                                            f"Dosage Form: "
+                                            f"{alt.get('dosage_form', '-')}"
+                                        )
+
+                                        st.caption(
+                                            f"Reason: "
+                                            f"{alternative.get('reason', '-')}"
+                                        )
+
+                                        st.warning(
+                                            "Do not switch medicines without "
+                                            "consulting a qualified doctor "
+                                            "or pharmacist."
+                                        )
+
+                        except Exception as e:
+
+                            st.error(
+                                f"Unable to load alternatives: {e}"
+                            )
 
                         st.warning(
                             "Medicine information only. "
