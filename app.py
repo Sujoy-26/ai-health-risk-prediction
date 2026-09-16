@@ -2886,7 +2886,7 @@ elif page == "🏥 Hospitals & Clinics":
     # ============================================================
     # PRESCRIPTION IMAGE UPLOAD
     # ============================================================
-if selected_patient_id:
+if page == "💊 Prescription" and "selected_patient_id" in locals() and selected_patient_id:
     st.divider()
 
     st.subheader("📷 Upload Prescription Image")
