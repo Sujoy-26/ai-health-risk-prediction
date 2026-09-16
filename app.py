@@ -2310,6 +2310,7 @@ elif page == "👨‍⚕️ Find Doctor":
 # BOOK APPOINTMENT
 # ====================================================
 
+
 st.subheader("📅 Book Appointment")
 
 # Doctor list
