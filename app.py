@@ -4,6 +4,7 @@ import pickle
 import uuid
 import html
 from io import BytesIO
+from datetime import datetime
 
 from supabase import create_client
 
@@ -2878,6 +2879,158 @@ elif page == "🏥 Hospitals & Clinics":
 
         st.error(
             f"❌ Hospital loading failed: {e}"
+        )
+
+
+    # ============================================================
+    # PRESCRIPTION IMAGE UPLOAD
+    # ============================================================
+
+    st.divider()
+
+    st.subheader("📷 Upload Prescription Image")
+
+    st.write(
+        "Upload or capture a photo of your doctor's prescription."
+    )
+
+    prescription_image = st.file_uploader(
+        "Choose Prescription Image",
+        type=["png", "jpg", "jpeg"],
+        key="prescription_image_uploader"
+    )
+
+    if prescription_image is not None:
+
+        st.image(
+            prescription_image,
+            caption="Prescription Preview",
+            use_container_width=True
+        )
+
+        if st.button(
+            "📤 Save Prescription Image",
+            use_container_width=True,
+            key="save_prescription_image"
+        ):
+
+            try:
+
+                file_extension = (
+                    prescription_image.name
+                    .split(".")[-1]
+                    .lower()
+                )
+
+                unique_file_name = (
+                    f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_"
+                    f"{uuid.uuid4().hex[:8]}."
+                    f"{file_extension}"
+                )
+
+                file_path = (
+                    f"{USER_ID}/"
+                    f"{selected_patient_id}/"
+                    f"{unique_file_name}"
+                )
+
+                file_bytes = prescription_image.getvalue()
+
+                supabase.storage.from_(
+                    "prescriptions"
+                ).upload(
+                    file_path,
+                    file_bytes,
+                    {
+                        "content-type":
+                            prescription_image.type
+                    }
+                )
+
+                supabase.table(
+                    "prescription_images"
+                ).insert({
+                    "user_id": USER_ID,
+                    "patient_id": selected_patient_id,
+                    "file_name": unique_file_name,
+                    "file_path": file_path,
+                    "image_url": ""
+                }).execute()
+
+                st.success(
+                    "✅ Prescription image saved successfully!"
+                )
+
+                st.rerun()
+
+            except Exception as e:
+
+                st.error(
+                    f"❌ Image upload failed: {e}"
+                )
+
+    # ============================================================
+    # SAVED PRESCRIPTION IMAGES
+    # ============================================================
+
+    st.divider()
+
+    st.subheader("🗂️ Saved Prescription Images")
+
+    try:
+
+        saved_images_response = (
+            supabase
+            .table("prescription_images")
+            .select("*")
+            .eq("user_id", USER_ID)
+            .eq("patient_id", selected_patient_id)
+            .order("uploaded_at", desc=True)
+            .execute()
+        )
+
+        saved_images = saved_images_response.data or []
+
+        if not saved_images:
+
+            st.info("No saved prescription images found.")
+
+        else:
+
+            for image_record in saved_images:
+
+                image_path = image_record["file_path"]
+
+                signed_url_response = (
+                    supabase.storage
+                    .from_("prescriptions")
+                    .create_signed_url(
+                        image_path,
+                        3600
+                    )
+                )
+
+                signed_url = signed_url_response.get(
+                    "signedURL"
+                )
+
+                if signed_url:
+
+                    st.image(
+                        signed_url,
+                        caption=image_record["file_name"],
+                        use_container_width=True
+                    )
+
+                    st.caption(
+                        f"Uploaded: "
+                        f"{image_record.get('uploaded_at', '-')}"
+                    )
+
+    except Exception as e:
+
+        st.error(
+            f"❌ Unable to load saved images: {e}"
         )
 
 
