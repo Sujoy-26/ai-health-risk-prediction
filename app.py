@@ -2328,11 +2328,7 @@ elif page == "👨‍⚕️ Find Doctor":
             )
 
 
-except Exception as e:
 
-    st.error(
-        f"Unable to load doctors: {e}"
-    )
 
 
 # ============================================================
