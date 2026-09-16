@@ -2175,6 +2175,7 @@ elif page == "📋 Patient History":
                 "No assessment history available."
             )
 
+
 # ============================================================
 # FIND DOCTOR PAGE
 # ============================================================
@@ -2190,6 +2191,7 @@ elif page == "👨‍⚕️ Find Doctor":
 
     try:
 
+        # LOAD DOCTORS
         doctors_response = (
             supabase
             .table("doctors")
@@ -2205,6 +2207,7 @@ elif page == "👨‍⚕️ Find Doctor":
 
         else:
 
+            # SPECIALIZATION FILTER
             specializations = sorted(
                 list(
                     set(
@@ -2228,6 +2231,7 @@ elif page == "👨‍⚕️ Find Doctor":
                     == selected_specialization
                 ]
 
+            # DOCTOR DETAILS
             for doctor in doctors:
 
                 with st.expander(
@@ -2251,12 +2255,12 @@ elif page == "👨‍⚕️ Find Doctor":
 
                     st.write(
                         f"**Experience:** "
-                        f"{doctor.get('experience_years', '-')}"
-                        " years"
+                        f"{doctor.get('experience_years', '-')} years"
                     )
 
                     st.divider()
 
+                    # AVAILABILITY
                     st.subheader("🕒 Availability")
 
                     availability_response = (
@@ -2301,31 +2305,101 @@ elif page == "👨‍⚕️ Find Doctor":
 
                             st.divider()
 
+            # ====================================================
+            # BOOK APPOINTMENT
+            # ====================================================
+
+            st.subheader("📅 Book Appointment")
+
+            doctor_options = {
+                doctor.get("doctor_name", "Unknown"):
+                doctor.get("id")
+                for doctor in doctors
+            }
+
+            if doctor_options:
+
+                selected_doctor_name = st.selectbox(
+                    "Select Doctor",
+                    list(doctor_options.keys())
+                )
+
+                appointment_date = st.date_input(
+                    "Select Appointment Date"
+                )
+
+                appointment_time = st.time_input(
+                    "Select Appointment Time"
+                )
+
+                consultation_type = st.selectbox(
+                    "Consultation Type",
+                    ["Offline", "Online"]
+                )
+
+                patient_name = st.text_input(
+                    "Patient Name"
+                )
+
+                patient_phone = st.text_input(
+                    "Patient Phone"
+                )
+
+                if st.button(
+                    "📅 Book Appointment",
+                    use_container_width=True
+                ):
+
+                    if not patient_name.strip():
+
+                        st.warning(
+                            "Please enter patient name."
+                        )
+
+                    elif not patient_phone.strip():
+
+                        st.warning(
+                            "Please enter patient phone."
+                        )
+
+                    else:
+
+                        st.success(
+                            "Appointment request submitted!"
+                        )
+
+                        st.write(
+                            f"**Doctor:** "
+                            f"{selected_doctor_name}"
+                        )
+
+                        st.write(
+                            f"**Date:** "
+                            f"{appointment_date}"
+                        )
+
+                        st.write(
+                            f"**Time:** "
+                            f"{appointment_time}"
+                        )
+
+                        st.write(
+                            f"**Consultation:** "
+                            f"{consultation_type}"
+                        )
+
+                        st.info(
+                            "Please confirm the appointment "
+                            "with the clinic."
+                        )
+
     except Exception as e:
 
         st.error(
             f"Unable to load doctors: {e}"
         )
 
-        st.divider()
 
-        # 👇 APPOINTMENT CODE HERE
-
-        st.subheader("📅 Book Appointment")
-
-        appointment_date = st.date_input(
-            "Select Appointment Date"
-        )
-
-        appointment_time = st.time_input(
-            "Select Appointment Time"
-        )
-
-        if st.button("📅 Book Appointment"):
-
-            st.success(
-                "Appointment request submitted!"
-            )
 
 
 
