@@ -2305,101 +2305,146 @@ elif page == "👨‍⚕️ Find Doctor":
 
                             st.divider()
 
-            # ====================================================
-            # BOOK APPOINTMENT
-            # ====================================================
 
-            st.subheader("📅 Book Appointment")
+# ====================================================
+# BOOK APPOINTMENT
+# ====================================================
 
-            doctor_options = {
-                doctor.get("doctor_name", "Unknown"):
-                doctor.get("id")
-                for doctor in doctors
-            }
+st.subheader("📅 Book Appointment")
 
-            if doctor_options:
+# Doctor list
+doctor_options = {
+    doctor.get("doctor_name", "Unknown"): doctor.get("id")
+    for doctor in doctors
+}
 
-                selected_doctor_name = st.selectbox(
-                    "Select Doctor",
-                    list(doctor_options.keys())
+if not doctor_options:
+
+    st.warning("No doctors available.")
+
+else:
+
+    selected_doctor_name = st.selectbox(
+        "Select Doctor",
+        list(doctor_options.keys())
+    )
+
+    selected_doctor_id = doctor_options[
+        selected_doctor_name
+    ]
+
+    appointment_date = st.date_input(
+        "Select Appointment Date"
+    )
+
+    appointment_time = st.time_input(
+        "Select Appointment Time"
+    )
+
+    consultation_type = st.selectbox(
+        "Consultation Type",
+        ["Offline", "Online"]
+    )
+
+    patient_name = st.text_input(
+        "Patient Name"
+    )
+
+    patient_phone = st.text_input(
+        "Patient Phone"
+    )
+
+    st.divider()
+
+    if st.button(
+        "📅 Book Appointment",
+        use_container_width=True
+    ):
+
+        if not patient_name.strip():
+
+            st.warning(
+                "Please enter patient name."
+            )
+
+        elif not patient_phone.strip():
+
+            st.warning(
+                "Please enter patient phone."
+            )
+
+        else:
+
+            try:
+
+                appointment_data = {
+
+                    "user_id": USER_ID,
+
+                    "patient_name":
+                        patient_name.strip(),
+
+                    "patient_phone":
+                        patient_phone.strip(),
+
+                    "doctor_id":
+                        selected_doctor_id,
+
+                    "appointment_date":
+                        str(appointment_date),
+
+                    "appointment_time":
+                        str(appointment_time),
+
+                    "consultation_type":
+                        consultation_type,
+
+                    "status":
+                        "Pending"
+
+                }
+
+                result = (
+                    supabase
+                    .table("appointments")
+                    .insert(appointment_data)
+                    .execute()
                 )
 
-                appointment_date = st.date_input(
-                    "Select Appointment Date"
+                st.success(
+                    "✅ Appointment booked successfully!"
                 )
 
-                appointment_time = st.time_input(
-                    "Select Appointment Time"
+                st.write(
+                    f"**Doctor:** "
+                    f"{selected_doctor_name}"
                 )
 
-                consultation_type = st.selectbox(
-                    "Consultation Type",
-                    ["Offline", "Online"]
+                st.write(
+                    f"**Date:** "
+                    f"{appointment_date}"
                 )
 
-                patient_name = st.text_input(
-                    "Patient Name"
+                st.write(
+                    f"**Time:** "
+                    f"{appointment_time}"
                 )
 
-                patient_phone = st.text_input(
-                    "Patient Phone"
+                st.write(
+                    f"**Consultation:** "
+                    f"{consultation_type}"
                 )
 
-                if st.button(
-                    "📅 Book Appointment",
-                    use_container_width=True
-                ):
+                st.info(
+                    "Your appointment is saved "
+                    "with Pending status."
+                )
 
-                    if not patient_name.strip():
+            except Exception as e:
 
-                        st.warning(
-                            "Please enter patient name."
-                        )
-
-                    elif not patient_phone.strip():
-
-                        st.warning(
-                            "Please enter patient phone."
-                        )
-
-                    else:
-
-                        st.success(
-                            "Appointment request submitted!"
-                        )
-
-                        st.write(
-                            f"**Doctor:** "
-                            f"{selected_doctor_name}"
-                        )
-
-                        st.write(
-                            f"**Date:** "
-                            f"{appointment_date}"
-                        )
-
-                        st.write(
-                            f"**Time:** "
-                            f"{appointment_time}"
-                        )
-
-                        st.write(
-                            f"**Consultation:** "
-                            f"{consultation_type}"
-                        )
-
-                        st.info(
-                            "Please confirm the appointment "
-                            "with the clinic."
-                        )
-
-    except Exception as e:
-
-        st.error(
-            f"Unable to load doctors: {e}"
-        )
-
-
+                st.error(
+                    f"❌ Booking failed: {e}"
+                )
 
 
 
