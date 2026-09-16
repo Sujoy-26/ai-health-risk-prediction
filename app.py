@@ -2419,7 +2419,7 @@ elif page == "💊 Prescription":
                 )
 
                 with st.expander(
-                    f"🧾 PRES-{prescription_id} | Dr. {doctor}"
+                    f"🧾 PRES-{prescription_id} | {doctor}"
                 ):
 
                     st.write(
