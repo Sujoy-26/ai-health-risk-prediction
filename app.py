@@ -2505,7 +2505,100 @@ elif page == "💊 Prescription":
         )
 
 
+# ============================================================
+# MEDICINES
+# ============================================================
 
+elif page == "💊 Medicines":
+
+    st.html("""
+    <div class="section-header">
+        <h2>💊 Medicine Search</h2>
+    </div>
+    """)
+
+    st.write(
+        "Search medicine information from the database."
+    )
+
+    medicine_search = st.text_input(
+        "🔎 Search Medicine",
+        placeholder="Enter medicine name or generic name",
+        key="medicine_search"
+    )
+
+    if medicine_search.strip():
+
+        try:
+
+            medicine_response = (
+                supabase
+                .table("medicines")
+                .select("*")
+                .or_(
+                    f"medicine_name.ilike.%{medicine_search}%,"
+                    f"generic_name.ilike.%{medicine_search}%"
+                )
+                .execute()
+            )
+
+            medicine_records = medicine_response.data or []
+
+            if not medicine_records:
+
+                st.info(
+                    "No medicine found in the database."
+                )
+
+            else:
+
+                st.success(
+                    f"{len(medicine_records)} medicine(s) found."
+                )
+
+                for medicine in medicine_records:
+
+                    with st.expander(
+                        f"💊 {medicine.get('medicine_name', '-')}"
+                    ):
+
+                        st.write(
+                            f"**Generic Name:** "
+                            f"{medicine.get('generic_name', '-')}"
+                        )
+
+                        st.write(
+                            f"**Strength:** "
+                            f"{medicine.get('strength', '-')}"
+                        )
+
+                        st.write(
+                            f"**Dosage Form:** "
+                            f"{medicine.get('dosage_form', '-')}"
+                        )
+
+                        st.write(
+                            f"**Manufacturer:** "
+                            f"{medicine.get('manufacturer', '-')}"
+                        )
+
+                        st.warning(
+                            "Medicine information only. "
+                            "Consult a qualified doctor or pharmacist "
+                            "before using or changing medicines."
+                        )
+
+        except Exception as e:
+
+            st.error(
+                f"Medicine search failed: {e}"
+            )
+
+    else:
+
+        st.info(
+            "Enter a medicine name to search."
+        )
 # ============================================================
 # FINAL DISCLAIMER
 # ============================================================
