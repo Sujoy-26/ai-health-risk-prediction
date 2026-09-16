@@ -2175,6 +2175,138 @@ elif page == "📋 Patient History":
                 "No assessment history available."
             )
 
+# ============================================================
+# FIND DOCTOR PAGE
+# ============================================================
+
+elif page == "👨‍⚕️ Find Doctor":
+
+    st.title("👨‍⚕️ Find a Doctor")
+
+    st.write(
+        "Search doctors by specialization "
+        "and check their available consultation timings."
+    )
+
+    try:
+
+        doctors_response = (
+            supabase
+            .table("doctors")
+            .select("*")
+            .execute()
+        )
+
+        doctors = doctors_response.data or []
+
+        if not doctors:
+
+            st.info("No doctors available.")
+
+        else:
+
+            specializations = sorted(
+                list(
+                    set(
+                        doctor.get("specialization", "Other")
+                        for doctor in doctors
+                    )
+                )
+            )
+
+            selected_specialization = st.selectbox(
+                "Select Specialization",
+                ["All"] + specializations
+            )
+
+            if selected_specialization != "All":
+
+                doctors = [
+                    doctor
+                    for doctor in doctors
+                    if doctor.get("specialization")
+                    == selected_specialization
+                ]
+
+            for doctor in doctors:
+
+                with st.expander(
+                    f"👨‍⚕️ {doctor.get('doctor_name', '-')}"
+                ):
+
+                    st.write(
+                        f"**Specialization:** "
+                        f"{doctor.get('specialization', '-')}"
+                    )
+
+                    st.write(
+                        f"**Registration Number:** "
+                        f"{doctor.get('registration_number', '-')}"
+                    )
+
+                    st.write(
+                        f"**Qualification:** "
+                        f"{doctor.get('qualification', '-')}"
+                    )
+
+                    st.write(
+                        f"**Experience:** "
+                        f"{doctor.get('experience_years', '-')}"
+                        " years"
+                    )
+
+                    st.divider()
+
+                    st.subheader("🕒 Availability")
+
+                    availability_response = (
+                        supabase
+                        .table("doctor_availability")
+                        .select("*")
+                        .eq("doctor_id", doctor["id"])
+                        .eq("available", True)
+                        .execute()
+                    )
+
+                    availability = (
+                        availability_response.data or []
+                    )
+
+                    if not availability:
+
+                        st.info(
+                            "No availability information found."
+                        )
+
+                    else:
+
+                        for slot in availability:
+
+                            st.write(
+                                f"📅 **Day:** "
+                                f"{slot.get('day_of_week', '-')}"
+                            )
+
+                            st.write(
+                                f"⏰ **Time:** "
+                                f"{slot.get('start_time', '-')}"
+                                f" - "
+                                f"{slot.get('end_time', '-')}"
+                            )
+
+                            st.write(
+                                f"💻 **Consultation:** "
+                                f"{slot.get('consultation_type', '-')}"
+                            )
+
+                            st.divider()
+
+    except Exception as e:
+
+        st.error(
+            f"Unable to load doctors: {e}"
+        )
+
 
 # ============================================================
 # PRESCRIPTION
