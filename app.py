@@ -2306,9 +2306,18 @@ elif page == "👨‍⚕️ Find Doctor":
                             st.divider()
 
 
+
 # ====================================================
 # BOOK APPOINTMENT
 # ====================================================
+
+
+
+ except Exception as e:
+        st.error(f"Failed to load doctors: {e}")
+
+
+
 
 
 st.subheader("📅 Book Appointment")
