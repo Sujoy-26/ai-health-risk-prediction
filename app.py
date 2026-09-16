@@ -2376,6 +2376,135 @@ elif page == "💊 Prescription":
                     )
 
 
+    st.divider()
+
+    st.subheader("📋 My Prescriptions")
+
+    try:
+
+        my_prescriptions = (
+            supabase
+            .table("prescriptions")
+            .select("*")
+            .eq("user_id", USER_ID)
+            .order("id", desc=True)
+            .execute()
+        )
+
+        prescription_records = my_prescriptions.data or []
+
+        if not prescription_records:
+
+            st.info("No saved prescriptions found.")
+
+        else:
+
+            for prescription in prescription_records:
+
+                prescription_id = prescription.get("id")
+
+                doctor = prescription.get(
+                    "doctor_name",
+                    "Not available"
+                )
+
+                diagnosis_text = prescription.get(
+                    "diagnosis",
+                    "Not available"
+                )
+
+                prescription_date_text = prescription.get(
+                    "prescription_date",
+                    "Not available"
+                )
+
+                with st.expander(
+                    f"🧾 PRES-{prescription_id} | Dr. {doctor}"
+                ):
+
+                    st.write(
+                        f"**Diagnosis:** {diagnosis_text}"
+                    )
+
+                    st.write(
+                        f"**Date:** {prescription_date_text}"
+                    )
+
+                    st.write(
+                        f"**Registration No.:** "
+                        f"{prescription.get('doctor_registration_no', '-')}"
+                    )
+
+                    st.divider()
+
+                    st.write("💊 **Medicines**")
+
+                    medicines_response = (
+                        supabase
+                        .table("prescription_medicines")
+                        .select("*")
+                        .eq(
+                            "prescription_id",
+                            prescription_id
+                        )
+                        .execute()
+                    )
+
+                    medicines = medicines_response.data or []
+
+                    if not medicines:
+
+                        st.info(
+                            "No medicines found."
+                        )
+
+                    else:
+
+                        for index, medicine in enumerate(
+                            medicines,
+                            start=1
+                        ):
+
+                            st.write(
+                                f"**{index}. "
+                                f"{medicine.get('medicine_name', '-')}"
+                                "**"
+                            )
+
+                            st.write(
+                                f"Dosage: "
+                                f"{medicine.get('dosage', '-')}"
+                            )
+
+                            st.write(
+                                f"Frequency: "
+                                f"{medicine.get('frequency', '-')}"
+                            )
+
+                            st.write(
+                                f"Duration: "
+                                f"{medicine.get('duration', '-')}"
+                            )
+
+                            st.write(
+                                f"Instructions: "
+                                f"{medicine.get('instructions', '-')}"
+                            )
+
+                            st.divider()
+
+                    st.caption(
+                        "This record is for viewing saved "
+                        "doctor-provided prescriptions."
+                    )
+
+    except Exception as e:
+
+        st.error(
+            f"Unable to load prescriptions: {e}"
+        )
+
+
 
 # ============================================================
 # FINAL DISCLAIMER
