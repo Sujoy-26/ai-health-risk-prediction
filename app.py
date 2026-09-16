@@ -1218,7 +1218,6 @@ def create_pdf_report(
 
     return buffer.getvalue()
 
-
 # ============================================================
 # NAVIGATION
 # ============================================================
@@ -1227,7 +1226,11 @@ page = st.radio(
     "Navigation",
     [
         "🏠 Home",
-        "📋 Patient History"
+        "📋 Patient History",
+        "💊 Prescription",
+        "💊 Medicines",
+        "👨‍⚕️ Find Doctor",
+        "🏥 Hospitals & Clinics"
     ],
     horizontal=True,
     label_visibility="collapsed"
