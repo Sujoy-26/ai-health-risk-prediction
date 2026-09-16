@@ -2720,6 +2720,168 @@ elif page == "💊 Prescription":
 
 
 # ============================================================
+# HOSPITALS & CLINICS
+# ============================================================
+
+elif page == "🏥 Hospitals & Clinics":
+
+    st.html("""
+    <div class="section-header">
+        <h2>🏥 Hospitals & Clinics</h2>
+    </div>
+    """)
+
+    st.write(
+        "Find hospitals and healthcare services near you."
+    )
+
+    try:
+
+        # LOAD HOSPITALS
+        hospitals_response = (
+            supabase
+            .table("hospitals")
+            .select("*")
+            .order("hospital_name")
+            .execute()
+        )
+
+        hospitals = hospitals_response.data or []
+
+        if not hospitals:
+
+            st.info("No hospitals available.")
+
+        else:
+
+            # SEARCH AND FILTER
+            search_hospital = st.text_input(
+                "🔍 Search Hospital or City",
+                placeholder="Enter hospital name or city"
+            )
+
+            filtered_hospitals = hospitals
+
+            if search_hospital.strip():
+
+                search_text = search_hospital.lower().strip()
+
+                filtered_hospitals = [
+                    hospital
+                    for hospital in hospitals
+                    if search_text in str(
+                        hospital.get("hospital_name", "")
+                    ).lower()
+                    or search_text in str(
+                        hospital.get("city", "")
+                    ).lower()
+                ]
+
+            if not filtered_hospitals:
+
+                st.warning(
+                    "No hospitals found for your search."
+                )
+
+            else:
+
+                for hospital in filtered_hospitals:
+
+                    with st.container(border=True):
+
+                        st.subheader(
+                            "🏥 " + hospital.get(
+                                "hospital_name",
+                                "Unknown Hospital"
+                            )
+                        )
+
+                        st.write(
+                            "📍 **Address:** "
+                            + str(
+                                hospital.get(
+                                    "address",
+                                    "Not available"
+                                )
+                            )
+                        )
+
+                        st.write(
+                            "🏙️ **City:** "
+                            + str(
+                                hospital.get(
+                                    "city",
+                                    "Not available"
+                                )
+                            )
+                        )
+
+                        st.write(
+                            "📞 **Phone:** "
+                            + str(
+                                hospital.get(
+                                    "phone",
+                                    "Not available"
+                                )
+                            )
+                        )
+
+                        departments = hospital.get(
+                            "departments"
+                        ) or []
+
+                        if departments:
+
+                            st.write(
+                                "**Departments:** "
+                                + ", ".join(departments)
+                            )
+
+                        services = hospital.get(
+                            "services"
+                        ) or []
+
+                        if services:
+
+                            st.write(
+                                "**Services:** "
+                                + ", ".join(services)
+                            )
+
+                        emergency = hospital.get(
+                            "emergency_available",
+                            False
+                        )
+
+                        if emergency:
+
+                            st.success(
+                                "🚑 Emergency Service Available"
+                            )
+
+                        else:
+
+                            st.info(
+                                "Emergency service information unavailable."
+                            )
+
+                        phone = hospital.get("phone")
+
+                        if phone:
+
+                            st.link_button(
+                                "📞 Contact Hospital",
+                                "tel:" + str(phone)
+                            )
+
+    except Exception as e:
+
+        st.error(
+            f"❌ Hospital loading failed: {e}"
+        )
+
+
+# ============================================================
 # MEDICINES
 # ============================================================
 
