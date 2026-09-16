@@ -2408,6 +2408,7 @@ elif page == "💊 Prescription":
     )
 
     # Select Patient
+    selected_patient_id = None
     search_patient = st.text_input(
         "🔎 Search Patient",
         placeholder="Patient ID, name or phone",
@@ -2885,7 +2886,7 @@ elif page == "🏥 Hospitals & Clinics":
     # ============================================================
     # PRESCRIPTION IMAGE UPLOAD
     # ============================================================
-
+if selected_patient_id:
     st.divider()
 
     st.subheader("📷 Upload Prescription Image")
