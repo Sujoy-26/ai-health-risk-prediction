@@ -1926,7 +1926,7 @@ if page == "🏠 Home":
 # PATIENT HISTORY
 # ============================================================
 
-else:
+elif page == "📋 Patient History":
 
     st.html("""
     <div class="section-header">
@@ -2174,6 +2174,207 @@ else:
             st.info(
                 "No assessment history available."
             )
+
+
+# ============================================================
+# PRESCRIPTION
+# ============================================================
+
+elif page == "💊 Prescription":
+
+    st.html("""
+    <div class="section-header">
+        <h2>💊 Prescription</h2>
+    </div>
+    """)
+
+    st.write(
+        "Add and manage patient prescriptions."
+    )
+
+    # Select Patient
+    search_patient = st.text_input(
+        "🔎 Search Patient",
+        placeholder="Patient ID, name or phone",
+        key="prescription_patient_search"
+    )
+
+    prescription_patients = get_patients(search_patient)
+
+    if prescription_patients.empty:
+
+        st.info(
+            "No patient found. Please create a patient "
+            "through Health Risk Prediction first."
+        )
+
+    else:
+
+        patient_options = (
+            prescription_patients["patient_id"]
+            .astype(str)
+            + " — "
+            + prescription_patients["patient_name"]
+            .astype(str)
+        ).tolist()
+
+        selected_patient = st.selectbox(
+            "Select Patient",
+            patient_options,
+            key="prescription_patient"
+        )
+
+        selected_patient_id = selected_patient.split(
+            " — "
+        )[0]
+
+        st.divider()
+
+        st.subheader("👨‍⚕️ Doctor Information")
+
+        doctor_col1, doctor_col2 = st.columns(2)
+
+        with doctor_col1:
+
+            doctor_name = st.text_input(
+                "Doctor Name",
+                placeholder="Enter doctor name",
+                key="prescription_doctor_name"
+            )
+
+        with doctor_col2:
+
+            doctor_reg_no = st.text_input(
+                "Doctor Registration Number",
+                placeholder="Enter registration number",
+                key="prescription_doctor_reg"
+            )
+
+        diagnosis = st.text_input(
+            "Diagnosis / Condition",
+            placeholder="Enter diagnosis",
+            key="prescription_diagnosis"
+        )
+
+        prescription_date = st.date_input(
+            "Prescription Date",
+            key="prescription_date"
+        )
+
+        st.divider()
+
+        st.subheader("💊 Medicine")
+
+        medicine_name = st.text_input(
+            "Medicine Name",
+            placeholder="Enter medicine name",
+            key="prescription_medicine_name"
+        )
+
+        med_col1, med_col2, med_col3 = st.columns(3)
+
+        with med_col1:
+
+            dosage = st.text_input(
+                "Dosage",
+                placeholder="e.g. 500 mg",
+                key="prescription_dosage"
+            )
+
+        with med_col2:
+
+            frequency = st.text_input(
+                "Frequency",
+                placeholder="e.g. Twice a day",
+                key="prescription_frequency"
+            )
+
+        with med_col3:
+
+            duration = st.text_input(
+                "Duration",
+                placeholder="e.g. 5 days",
+                key="prescription_duration"
+            )
+
+        instructions = st.text_area(
+            "Instructions",
+            placeholder="Doctor's instructions",
+            key="prescription_instructions"
+        )
+
+        st.warning(
+            "⚠️ This section is for recording a doctor's "
+            "prescription. The AI system does not prescribe "
+            "medicines or dosage."
+        )
+
+        if st.button(
+            "💾 Save Prescription",
+            use_container_width=True,
+            key="save_prescription"
+        ):
+
+            if not doctor_name.strip():
+
+                st.error("Please enter doctor name.")
+
+            elif not medicine_name.strip():
+
+                st.error("Please enter medicine name.")
+
+            else:
+
+                try:
+
+                    prescription_response = (
+                        supabase
+                        .table("prescriptions")
+                        .insert({
+                            "patient_id": selected_patient_id,
+                            "user_id": USER_ID,
+                            "doctor_name": doctor_name.strip(),
+                            "doctor_registration_no":
+                                doctor_reg_no.strip(),
+                            "diagnosis": diagnosis.strip(),
+                            "prescription_date":
+                                str(prescription_date),
+                            "notes": instructions.strip()
+                        })
+                        .execute()
+                    )
+
+                    prescription_id = (
+                        prescription_response.data[0]["id"]
+                    )
+
+                    supabase.table(
+                        "prescription_medicines"
+                    ).insert({
+                        "prescription_id": prescription_id,
+                        "medicine_name":
+                            medicine_name.strip(),
+                        "dosage": dosage.strip(),
+                        "frequency": frequency.strip(),
+                        "duration": duration.strip(),
+                        "instructions":
+                            instructions.strip()
+                    }).execute()
+
+                    st.success(
+                        "✅ Prescription saved successfully!"
+                    )
+
+                    st.info(
+                        f"Prescription ID: PRES-{prescription_id}"
+                    )
+
+                except Exception as e:
+
+                    st.error(
+                        f"Prescription save failed: {e}"
+                    )
+
 
 
 # ============================================================
