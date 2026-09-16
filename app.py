@@ -2307,6 +2307,33 @@ elif page == "👨‍⚕️ Find Doctor":
             f"Unable to load doctors: {e}"
         )
 
+        st.divider()
+
+        # 👇 APPOINTMENT CODE HERE
+
+        st.subheader("📅 Book Appointment")
+
+        appointment_date = st.date_input(
+            "Select Appointment Date"
+        )
+
+        appointment_time = st.time_input(
+            "Select Appointment Time"
+        )
+
+        if st.button("📅 Book Appointment"):
+
+            st.success(
+                "Appointment request submitted!"
+            )
+
+
+except Exception as e:
+
+    st.error(
+        f"Unable to load doctors: {e}"
+    )
+
 
 # ============================================================
 # PRESCRIPTION
